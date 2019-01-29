@@ -25,7 +25,6 @@ Object::Object() {
 	pitch = 0;
 	roll = 0;
 	yaw = 0;
-	au_source.push_back(AudioSource());
 }
 
 Object::Object(glm::vec3 p) {
@@ -34,7 +33,6 @@ Object::Object(glm::vec3 p) {
 	pitch = 0;
 	roll = 0;
 	yaw = 0;
-	au_source.push_back(AudioSource());
 }
 
 Object::Object(unsigned int id) {
@@ -43,9 +41,6 @@ Object::Object(unsigned int id) {
 	pitch = 0;
 	roll = 0;
 	yaw = 0;
-	au_source.push_back(AudioSource());
-	//components.addModel(id);
-	std::cout << "T" << std::endl;
 }
 
 Object::Object(glm::vec3 _pos, glm::vec3 scale, float _pitch, float _yaw, float _roll) {
@@ -54,7 +49,6 @@ Object::Object(glm::vec3 _pos, glm::vec3 scale, float _pitch, float _yaw, float 
 	pitch = _pitch;
 	roll = _roll;
 	yaw = _yaw;
-	au_source.push_back(AudioSource());
 }
 
 
@@ -70,10 +64,13 @@ void Object::GetScriptData(ComponentScript* script, unsigned int id) {
 	exitGame = script->getExit();
 	physicsBody.mass = script->GetMass();
 
+	
 	raycasts = script->getRaycasts();
 	script->clearRaycasts();
 
+	//Changing game data (levels, interface).
 	newScene = script->getNewScene();
+	newUI = script->getNewUI();
 
 	//Forces
 	forces.insert(forces.end(), script->GetAllForces()->begin(), script->GetAllForces()->end());
@@ -140,25 +137,6 @@ void Object::OnUpdate(ComponentScript* script, unsigned int scriptID, GLFWwindow
 	script->OnUpdate();
 
 	GetScriptData(script, scriptID);
-
-	/*components = script->getComponents();
-	pos = script->GetPosition();
-	sca = script->GetScale();
-	pitch = script->GetPitch();
-	roll = script->GetRoll();
-	yaw = script->GetYaw();
-	raycasts = script->getRaycasts();
-
-	newScene = script->getNewScene();
-	exitGame = script->getExit();
-	script->clearRaycasts();
-	componentScriptData[scriptID] = script->getScriptData();
-	std::vector<Actor> actors = script->getNewActors();
-	if (actors.size() > 0) {
-		newActors.insert(newActors.end(), actors.begin(), actors.end());
-	}
-	script->clearActors();
-	deleteSelf = script->isDeleted();*/
 }
 
 void Object::OnFixedUpdate(ComponentScript* script, unsigned int scriptID, GLFWwindow *_window, float deltaTime) {

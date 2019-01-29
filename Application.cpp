@@ -1,7 +1,6 @@
 
 
 #include "ResourceManager.h"
-#include "AudioEngine\AudioEngine.h"
 #include "Components\Scripts\ScriptManager.h"
 #include "Components\ComponentManager.h"
 #include "EngineInterface.h"
@@ -12,6 +11,9 @@
 #include <cstdlib> //Random number generation
 #include <chrono> //Sleeping
 
+#ifndef _audio_h_
+#include "AudioEngine\AudioEngine.h"
+#endif
 
 
 
@@ -93,13 +95,16 @@ int main(void)
 	
 	//width = 1920;
 	//height = 1080;
-	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	int count;
+	GLFWmonitor** monitors = glfwGetMonitors(&count);
+	GLFWmonitor* monitor = monitors[2];
 	const GLFWvidmode* video = glfwGetVideoMode(monitor);
 	width = video->width;
 	height = video->height;
+	
 
 
-	glfwSetWindowMonitor(window, glfwGetPrimaryMonitor(), 0, 0, width, height, video->refreshRate);
+	glfwSetWindowMonitor(window, monitors[2], 0, 0, width, height, video->refreshRate);
 	glfwSetWindowSize(window, width, height);
 	glfwSetWindowPos(window, 0, 0);
 
@@ -119,6 +124,8 @@ int main(void)
 	ImGui::StyleColorsDark();
 
 
+	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
+
 	ResourceManager resources;
 	PhysicsEngine physics;
 	AudioEngine audio;
@@ -126,6 +133,16 @@ int main(void)
 	ScriptManager scripts;
 	ComponentManager components;
 	EngineInterface engine_interface;
+
+	engine_interface.width = width;
+	engine_interface.height = height;
+
+
+	audio.newSource("Source1");
+	audio.newSource("Source2");
+	//audio.playSound("Source1","test");
+	audio.playSound("Source2", "car");
+
 
 	if (client.closeProgram) {
 		//End program.
@@ -143,7 +160,6 @@ int main(void)
 
 
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback); /*Resizing the window. - Calls the function using the window context*/
-	std::cout << "GPU: " << glGetString(GL_VERSION) << std::endl;
 
 	glEnable(GL_DEPTH_TEST); //To prevent panes from overlapping.
 
@@ -255,8 +271,7 @@ int main(void)
 	double lastFrame = glfwGetTime();
 	double updateLag = 0.0;
 
-	engine_interface.OnLoad(client, physics, resources, scripts);
-	engine_interface.OnStart(client,physics,resources,scripts);
+	engine_interface.loadInterface(client.WorkingDir + "Interfaces\\" + client.project.startInterface + ".gui", client, physics);
 
 
 	while (!glfwWindowShouldClose(window))
@@ -286,8 +301,12 @@ int main(void)
 				client.update(window);
 				InGame = client.InGame;
 				if (InGame) {
-					physics.update(client.world, physics_update, client.project.directory);
 					engine_interface.OnUpdate(physics_update, client, physics, resources);
+					physics.update(client.world, physics_update, client.project.directory);
+					if (physics.newUI != "") {
+						engine_interface.loadInterface(client.WorkingDir + "interfaces\\" + physics.newUI + ".gui", client, physics);
+						physics.newUI = "";
+					}
 					int index = 0;
 					for each (Object o in client.world.objects) {
 						bool addedActors = false;
@@ -350,10 +369,12 @@ int main(void)
 			Scene interpolatedScene = client.world.interpolate(lastScene, deltaTime);
 
 			resources.setMatrices(client.world.getCamera(InGame).camera.viewMatrix(), projection); //SHOULD USE INTERPOLATED CAMERA BUT CAUSES BUG.
-			glViewport(engine_interface.xDisplacement, height - (9 * (width - engine_interface.xDisplacement) / 16), width - engine_interface.xDisplacement, 9 * (width - engine_interface.xDisplacement) / 16);
+			glViewport(engine_interface.xDisplacement, height - (9 * (width - engine_interface.xDisplacement) / 16) - engine_interface.UIEy, width - engine_interface.xDisplacement, 9 * (width - engine_interface.xDisplacement) / 16);
+			
 
 			if (client.engineView == PRODUCT | client.engineView == Game) {
 				resources.render(interpolatedScene, client.world.getCamera(InGame).camera.getPos() + client.world.getCamera(InGame).componentTransform.position, true);
+				
 			}
 			else {
 				resources.render(interpolatedScene, client.world.getCamera(InGame).camera.getPos() + client.world.getCamera(InGame).componentTransform.position, false);

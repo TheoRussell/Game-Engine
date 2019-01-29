@@ -36,6 +36,7 @@ void Project::load(std::string projVersion) {
 
 	name = BinaryFiles::getString(projFile);
 	startScene = BinaryFiles::getString(projFile);
+	startInterface = BinaryFiles::getString(projFile);
 
 	projFile.close();
 
@@ -56,6 +57,7 @@ void Project::save(std::string projVersion) {
 
 	BinaryFiles::writeString(projFile, name);
 	BinaryFiles::writeString(projFile, startScene);
+	BinaryFiles::writeString(projFile, startInterface);
 
 	projFile.close();
 }

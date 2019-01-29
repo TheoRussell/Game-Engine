@@ -15,6 +15,7 @@ enum BINARYWrite {
 	BINARY_Line,
 	BINARY_Poly,
 	BINARY_Percent,
+	BINARY_Button,
 	//Scenes
 	BINARY_Object,
 	BINARY_Physics,

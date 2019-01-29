@@ -4,13 +4,17 @@
 
 EngineInterface::EngineInterface()
 {
-	selectedTypes.insert(std::pair<UISelectType, bool>(s_Rectangle, false));
-	selectedTypes.insert(std::pair<UISelectType, bool>(s_Line, false));
-	selectedTypes.insert(std::pair<UISelectType, bool>(s_Label, false));
-	selectedTypes.insert(std::pair<UISelectType, bool>(s_Poly, false));
-	selectedTypes.insert(std::pair<UISelectType, bool>(s_PBar, false));
+	selectedTypes.insert(std::pair<UIType, bool>(s_Rectangle, false));
+	selectedTypes.insert(std::pair<UIType, bool>(s_Line, false));
+	selectedTypes.insert(std::pair<UIType, bool>(s_Label, false));
+	selectedTypes.insert(std::pair<UIType, bool>(s_Poly, false));
+	selectedTypes.insert(std::pair<UIType, bool>(s_PBar, false));
 
-	debug_msg_box.debugStyle();
+	debug_msg_box.DebugStyle();
+
+
+
+
 }
 
 
@@ -19,49 +23,80 @@ EngineInterface::~EngineInterface()
 }
 
 
-void EngineInterface::OnLoad(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
+void EngineInterface::modifyScriptRef(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
+	ImGui::Begin("Script Refs", &UIErefopen);
+
+	int index = 0;
+	for each (ComponentScript * scr in physics.scripts) { //Loop through each script.
+		if (ImGui::TreeNode((scr->GetName() + "##scriptTree" + std::to_string(index)).c_str())) { //Display the script name as a new node.
+
+
+																								  ///Labels.
+			for (std::pair<std::string, InterfaceItem*> pointerRef : *scr->GetInterfacePointers()) { //Loops through each reference to a UI element.	
+																									 //Checks if the user has selected an item, hovering it over an option and then releasing the button (to pair the reference to the element).
+				std::string identifier = pointerRef.first + "##" + std::to_string(index) + scr->GetName();
+				ImGui::Selectable(identifier.c_str());
+				if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(0)) {
+
+					glm::vec2 revertDist = refStartPos - glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y);
+
+					for (InterfaceItem* item : UIE.Interface_Items) {
+						if (item->GetSelected()) {
+							pointerRef.second = item;
+							scriptInterfacePointers.at(scr).at(pointerRef.first) = item;
+							//Moves the element back to origin after pairing is complete.
+							item->Move(revertDist, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+
+							OnStart();
+							ImGui::TreePop();
+							ImGui::End();
+							return;
+						}
+					}
+
+				}
+			}
+
+			ImGui::TreePop();
+		}
+
+		index++;
+	}
+
+	ImGui::End();
+}
+
+
+void EngineInterface::OnLoad(ClientHandler &client, PhysicsEngine &physics) {
+
 	for (ComponentScript * s : physics.scripts) {
 		//Runs through each script.
-
-		//Label.
-		for each (std::string ref in *s->getNewLabelRefs()) {
-			s->GetLabelPointers()->insert(std::pair<std::string, UILabel*>(ref, nullptr)); //Inserts the new UI references into the script.
+		//For each new interface reference created, generate a map of the reference to the pointer of the element.
+		for (std::string refName : *s->getNewInterfaceRefs()) {
+			s->GetInterfacePointers()->insert(std::pair<std::string, InterfaceItem*>(refName, nullptr));
 		}
-		s->UI_lblReferences.clear(); //Clears out the new reference requests.
 
-		//Percent box.
-		for each (std::string ref in *s->getNewPBarRefs()) {
-			s->GetPercentBarPointers()->insert(std::pair<std::string, UIPercentBar*>(ref, nullptr));
+
+		std::map<std::string, InterfaceItem*> maps;
+		for each (std::pair<std::string, InterfaceItem*> refNPointer in *s->GetInterfacePointers()) { //Loops through each reference to a UI label.
+			maps.insert(refNPointer);
 		}
-		s->UI_pbarReferences.clear();
-
-
-		std::map<std::string, UILabel*> maps;
-		for each (std::pair<std::string, UILabel*> x in *s->GetLabelPointers()) { //Loops through each reference to a UI label.
-			maps.insert(x);
-		}
-		scriptPointer_labels.insert(std::pair<ComponentScript*, std::map<std::string, UILabel*>>( s,maps));
 		//Adds any of the UI references from the script into a map that keeps track of all references for all scripts.
+		scriptInterfacePointers.insert(std::pair<ComponentScript*, std::map<std::string, InterfaceItem*>>( s,maps));
 
-		std::map<std::string, UIPercentBar*> pbar_maps;
-		for each (std::pair<std::string, UIPercentBar*> x in *s->GetPercentBarPointers()) { //Loops through each reference to a UI label.
-			pbar_maps.insert(x);
-		}
-		scriptPointer_percBar.insert(std::pair<ComponentScript*, std::map<std::string, UIPercentBar*>>(s, pbar_maps));
 	}
 }
 
 
-void EngineInterface::OnStart(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
-	for each (std::pair<ComponentScript*, std::map<std::string, UILabel*>> pair in scriptPointer_labels) {
-		*pair.first->GetLabelPointers() = pair.second; //Matches the new memory pointers for the UI elements once they are created to the references.
-	}
-	for each (std::pair<ComponentScript*, std::map<std::string, UIPercentBar*>> pair in scriptPointer_percBar) {
-		*pair.first->GetPercentBarPointers() = pair.second;
+void EngineInterface::OnStart() {
+	for (std::pair<ComponentScript*, std::map<std::string, InterfaceItem*>> pair : scriptInterfacePointers) {
+		//Updating each script to have the appropriate references added.
+		*pair.first->GetInterfacePointers() = pair.second;
 	}
 }
 
 void EngineInterface::OnUpdate(float deltaTime, ClientHandler &client, PhysicsEngine &physics, ResourceManager &res) {
+	//Debug messages.
 	debug_msg_box.text = "";
 	try {
 		for (std::pair<std::string, float> msg : debug_messages) {
@@ -79,23 +114,32 @@ void EngineInterface::OnUpdate(float deltaTime, ClientHandler &client, PhysicsEn
 		
 	}
 
-
 	for each (ComponentScript *cs in physics.scripts) {
 		for each (std::string s in cs->getDebugText()) {
 			debug_messages.insert(std::pair<std::string, float>(s, 0.0f));
 		}
 	}
+
+
+
+	//Updating buttons.
+	glm::vec2 mousePosition = { (ImGui::GetMousePos().x - xDisplacement) / uiWidth, (ImGui::GetMousePos().y - yDisplacement) / uiHeight };
+	int index = 0;
+	for (UIButton button : UIE.buttons) {
+		if (ImGui::IsMouseClicked(0)) {
+			if (button.InBoundingBox(mousePosition)) {
+				button.Clicked = true;
+			}
+		}
+		UIE.buttons[index] = button;
+		index++;
+	}
 }
 
 
-void EngineInterface::changeUI(ClientHandler &client, std::string name) {
-	std::ifstream checkFile(client.WorkingDir + "Interfaces\\" + name + ".gui");
-	bool foundFile = checkFile.good();
-	checkFile.close();
-	if (foundFile) {
-		if (!UIE.loadUI(client.WorkingDir + "Interfaces\\" + name + ".gui")) {
-			//Error to load binary file.
-		}
+void EngineInterface::changeUI(ClientHandler &client, PhysicsEngine &physics, std::string name) {
+	if (loadInterface(client.WorkingDir + "Interfaces\\" + name + ".gui", client, physics)) {
+		client.project.startInterface = name;
 	}
 }
 
@@ -117,11 +161,13 @@ void EngineInterface::NormalDesign() {
 	style.Colors[ImGuiCol_Button] = ImVec4(0.007, 0.203, 0.572, 1.0f);
 }
 
+//Top bar.
 void EngineInterface::Menu(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
 	ImGui::Begin("Menu", (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
 	ImGui::SetWindowSize(ImVec2(width, 50));
 	ImGui::SetWindowPos(ImVec2(0, 0));
 
+	UIEy += 50;
 
 
 	ImGuiStyle & style = ImGui::GetStyle();
@@ -144,7 +190,7 @@ void EngineInterface::Menu(ClientHandler &client, PhysicsEngine &physics, Resour
 	else {
 		ImGui::SameLine();
 		if (ImGui::Button("Engine View")) {
-			OnStart(client,physics,res,scripts); //Required to update pointers.
+			OnStart(); //Required to update pointers.
 			client.engineView = Editor;
 			client.InEditor = false;
 			UIEx_s = UIEx;
@@ -181,7 +227,10 @@ void EngineInterface::Menu(ClientHandler &client, PhysicsEngine &physics, Resour
 		ImGui::SameLine();
 		if (ImGui::Button("Save##saveUI")) {
 			if (!UIEitembox) {
-				UIE.saveAll(client.WorkingDir + "\\Interfaces\\");
+				saveInterface(client);
+				loadInterface(client.WorkingDir + "Interfaces\\" + UIE.UIName + ".gui", client, physics);
+
+
 			}
 			else {
 				debug_write("Unable to save interface while modifying item!");
@@ -195,6 +244,112 @@ void EngineInterface::Menu(ClientHandler &client, PhysicsEngine &physics, Resour
 	NormalDesign();
 
 	ImGui::End();
+}
+
+bool EngineInterface::loadInterface(std::string path, ClientHandler & client, PhysicsEngine & physics) {
+	try {
+		std::ifstream input(path, std::ifstream::in | std::ios::binary);
+		if (!UIE.loadUI(input)) {
+			input.close();
+			return false;
+		}
+
+		scriptInterfacePointers.clear();
+		OnLoad(client, physics);
+
+		BINARYWrite writeType = BINARY_Script;
+		while (input.good() && writeType != BINARY_END) {
+			if (writeType == BINARY_Script) {
+				int refCount = BinaryFiles::getInt(input);
+				if (refCount > 0) {
+					for (int iter = 0; iter < refCount; iter++) {
+						//Loops through each script paired to interface.
+						std::string scriptName = BinaryFiles::getString(input);
+						//Fetch script pointer.
+						for (ComponentScript* script : physics.scripts) {
+							if (script->GetName() == scriptName) {
+								//Checks if the correct script is found.
+								int pairCount = BinaryFiles::getInt(input);
+								if (pairCount > 0) {
+									//Binds each of the pointers to specific script/interface reference.
+									for (int pairInter = 0; pairInter < pairCount; pairInter++) {
+										std::string referenceName = BinaryFiles::getString(input);
+										std::string referenceID = BinaryFiles::getString(input);
+
+										//Fetch actual pointer.
+										for (InterfaceItem* item : UIE.Interface_Items) {
+											if (item->GetID() == referenceID) {
+												scriptInterfacePointers.at(script).at(referenceName) = item;
+												break;
+											}
+										}
+									}
+								}
+								break;
+							}
+						}
+
+						
+					}
+				}
+			}
+			writeType = BinaryFiles::getBINARYType(input);
+		}
+
+		OnStart();
+
+		input.close();
+	}
+	catch (std::exception ex) {
+		std::cout << "cannot load interface" << std::endl;
+		return false;
+	}
+	return true;
+
+}
+
+void EngineInterface::saveInterface(ClientHandler &client) {
+	try {
+		std::ofstream output(client.WorkingDir + "Interfaces\\" + UIE.UIName + ".gui", std::ofstream::out | std::ios::binary);
+		output.clear();
+		UIE.saveAll(output);
+
+		BINARYWrite end = BINARY_END;
+
+		//Saving script references to file.
+		//Writes count of all scripts, then name of script & number of references for script, then the references.
+		end = BINARY_Script;
+		BinaryFiles::writeBINARYType(output, end);
+		int refCount = scriptInterfacePointers.size();
+		BinaryFiles::writeInt(output, refCount);
+		for (std::pair<ComponentScript*, std::map<std::string, InterfaceItem*>> ref : scriptInterfacePointers) {
+			BinaryFiles::writeString(output, ref.first->GetName());
+
+			int pairCount = ref.second.size();
+			BinaryFiles::writeInt(output, pairCount);
+			for (std::pair<std::string, InterfaceItem*> pair : ref.second) {
+				BinaryFiles::writeString(output, pair.first);
+
+				//If no reference was added, make it null.
+				if (pair.second == nullptr) {
+					std::string null = "NULL";
+					BinaryFiles::writeString(output, null);
+				}
+				else {
+					BinaryFiles::writeString(output, pair.second->GetID());
+				}
+
+			}
+		}
+
+		end = BINARY_END;
+		BinaryFiles::writeBINARYType(output, end);
+		output.close();
+	}
+	catch (std::exception ex) {
+		std::cout << "error saving interface" << std::endl;
+	}
+
 }
 
 
@@ -291,6 +446,7 @@ void EngineInterface::projects(ClientHandler &client) {
 
 //Interface
 
+
 void EngineInterface::UIEitem(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
 	ImGui::SetNextWindowPos({ (float)UIEboxx, (float)UIEboxy });
 	ImGui::Begin("New Object##UIEitembox", (bool*)true, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar);
@@ -299,122 +455,94 @@ void EngineInterface::UIEitem(ClientHandler &client, PhysicsEngine &physics, Res
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("Paste")) {
-		//ImVec2 tempPos = ImGui::GetMousePos();
-		//glm::vec2 mousePos(tempPos.x, tempPos.y);
 		pasteUI();
-		if (UIE.clipboard.rect.size() > 0 | UIE.clipboard.line.size() > 0 | UIE.clipboard.label.size() > 0 | UIE.clipboard.polygon.size() > 0) {
+		if (UIE.Interface_Clip.size() > 0) {
+			//Hide the new item box.
 			UIEitembox = false;
 		}
 	}
-	if (selectedTypes.at(s_PBar)) {
-		if (UIE.bars.size() > 0) {
-			for (int i = 0; i < UIE.bars.size(); i++) {
-				if (UIE.bars[i].selected) {
-					std::string buttonTxt = "Delete##pbDel" + std::to_string(i);
-					ImGui::TextDisabled("% BAR");
-					if (ImGui::Button(buttonTxt.c_str())) {
-						UIE.bars.erase(UIE.bars.begin() + i);
-						break;
-					}
-
-					ImGui::DragInt("Padding##pbPad", &UIE.bars[i].paddingWidth, 1.0f, 0, 100);
-					float perc100 = UIE.bars[i].percent * 100;
-					ImGui::DragFloat("Percent##pbPerc", &perc100, 1.0f, 0, 100);
-					UIE.bars[i].percent = perc100 / 100.0f;
 
 
-					buttonTxt = "Empty##pbEmptyColour" + std::to_string(i);
-					float col[4] = { UIE.bars[i].empty_fillCol.x, UIE.bars[i].empty_fillCol.y, UIE.bars[i].empty_fillCol.z, UIE.bars[i].empty_fillCol.w };
-					ImGui::ColorPicker4(buttonTxt.c_str(), &col[0]);
-					UIE.bars[i].empty_fillCol = glm::vec4(col[0], col[1], col[2], col[3]);
+	unsigned int index = 0;
+	for (InterfaceItem* item : UIE.Interface_Items) {
+		if (item->DisplayData()) {
 
-					buttonTxt = "Full##pbFullColour" + std::to_string(i);
-					float full_col[4] = { UIE.bars[i].full_fillCol.x, UIE.bars[i].full_fillCol.y, UIE.bars[i].full_fillCol.z, UIE.bars[i].full_fillCol.w };
-					ImGui::ColorPicker4(buttonTxt.c_str(), &full_col[0]);
-					UIE.bars[i].full_fillCol = glm::vec4(full_col[0], full_col[1], full_col[2], full_col[3]);
-
-					buttonTxt = "Outline##pbFullColour" + std::to_string(i);
-					float line_col[4] = { UIE.bars[i].lineCol.x, UIE.bars[i].lineCol.y, UIE.bars[i].lineCol.z, UIE.bars[i].lineCol.w };
-					ImGui::ColorPicker4(buttonTxt.c_str(), &line_col[0]);
-					UIE.bars[i].lineCol = glm::vec4(line_col[0], line_col[1], line_col[2], line_col[3]);
-
-				}
-			}
-		}
-	}
-	if (selectedTypes.at(s_Rectangle)) {
-		if (UIE.rectangles.size() > 0) {
-			for (int i = 0; i < UIE.rectangles.size(); i++) {
-				if (UIE.rectangles[i].selected) {
-					
-					std::string buttonTxt = "Delete##rectDel" + std::to_string(i);
-					ImGui::TextDisabled("RECTANGLE");
-					if (ImGui::Button(buttonTxt.c_str())) {
-						UIE.rectangles.erase(UIE.rectangles.begin() + i);
-						break;
-					}
-
-
-					buttonTxt = "##rectFilled" + std::to_string(i);
-					float col[4] = { UIE.rectangles[i].cornerA.x,UIE.rectangles[i].cornerA.y,UIE.rectangles[i].cornerA.z,UIE.rectangles[i].cornerA.w };
-					ImGui::Checkbox(buttonTxt.c_str(), &UIE.rectangles[i].filled);
-					ImGui::SameLine();
-
-					buttonTxt = "Fill##rectColour" + std::to_string(i);
-					ImGui::ColorPicker4(buttonTxt.c_str(), &col[0]);
-					UIE.rectangles[i].setSolidFill(glm::vec4(col[0],col[1],col[2],col[3]));
-
-				}
-			}
-		}
-	}
-	if (selectedTypes.at(s_Label)) {
-		if (UIE.labels.size() > 0) {
-			for (int i = 0; i < UIE.labels.size(); i++) {
-				if (UIE.labels[i].selected) {
-
-					ImGui::TextDisabled("LABEL");
-
-					if (ImGui::Button(("Delete##labelDel" + std::to_string(i)).c_str())) {
+			//Deleting the element from the interface.
+			if (item->GetType() == s_Label) {
+				for (int i = 0; i < UIE.labels.size(); i++) {
+					if (&UIE.labels.at(i) == item) {
 						UIE.labels.erase(UIE.labels.begin() + i);
 						break;
 					}
-
-					char buffer[2048];
-					strcpy_s(buffer, UIE.labels[i].text.c_str());
-					ImGui::InputTextMultiline(("##lblText" + std::to_string(i)).c_str(), buffer, sizeof(buffer));
-					UIE.labels[i].text = buffer;
-
-
-					float col[4] = { UIE.labels[i].backColour.x, UIE.labels[i].backColour.y, UIE.labels[i].backColour.z, UIE.labels[i].backColour.w };
-					ImGui::Checkbox(("##lblFilled"+std::to_string(i)).c_str(), &UIE.labels[i].backFill);
-					ImGui::SameLine();
-					ImGui::ColorPicker4(("Fill##lblColour" + std::to_string(i)).c_str(), &col[0]);
-					UIE.labels[i].backColour = glm::vec4(col[0], col[1], col[2], col[3]);
-
-
-					float colBORDER[4] = { UIE.labels[i].borderColour.x, UIE.labels[i].borderColour.y, UIE.labels[i].borderColour.z, UIE.labels[i].borderColour.w };
-					ImGui::Checkbox(("##lblBorder" + std::to_string(i)).c_str(), &UIE.labels[i].outLine);
-					ImGui::SameLine();
-					ImGui::ColorPicker4(("Border##lblColour" + std::to_string(i)).c_str(), &colBORDER[0]);
-					UIE.labels[i].borderColour = glm::vec4(colBORDER[0], colBORDER[1], colBORDER[2], colBORDER[3]);
 				}
 			}
+			if (item->GetType() == s_Button) {
+				for (int i = 0; i < UIE.buttons.size(); i++) {
+					if (&UIE.buttons.at(i) == item) {
+						UIE.buttons.erase(UIE.buttons.begin() + i);
+						break;
+					}
+				}
+			}
+			if (item->GetType() == s_PBar) {
+				for (int i = 0; i < UIE.bars.size(); i++) {
+					if (&UIE.bars.at(i) == item) {
+						UIE.bars.erase(UIE.bars.begin() + i);
+						break;
+					}
+				}
+			}
+			if (item->GetType() == s_Rectangle) {
+				for (int i = 0; i < UIE.rectangles.size(); i++) {
+					if (&UIE.rectangles.at(i) == item) {
+						UIE.rectangles.erase(UIE.rectangles.begin() + i);
+						break;
+					}
+				}
+			}
+			if (item->GetType() == s_Poly) {
+				for (int i = 0; i < UIE.polygons.size(); i++) {
+					if (&UIE.polygons.at(i) == item) {
+						UIE.polygons.erase(UIE.polygons.begin() + i);
+						break;
+					}
+				}
+			}
+			if (item->GetType() == s_Line) {
+				for (int i = 0; i < UIE.lines.size(); i++) {
+					if (&UIE.lines.at(i) == item) {
+						UIE.lines.erase(UIE.lines.begin() + i);
+						break;
+					}
+				}
+			}
+
+
+
+			UIE.Interface_Items.erase(UIE.Interface_Items.begin() + index);
+			UIE.GeneratePointers();
+
+			break;
 		}
+		index++;
 	}
 
 
 	ImGui::TextDisabled("NEW");
-	if (ImGui::Button("% Bar##newPb")) {
+	if (ImGui::Button("% Bar")) {
 		UIE.addPercentBar();
 		UIEitembox = false;
 	}
-	if (ImGui::Button("Box")) {
+	if (ImGui::Button("Rectangle")) {
 		UIE.addRect();
 		UIEitembox = false;
 	}
 	if (ImGui::Button("Label")) {
 		UIE.addLabel();
+		UIEitembox = false;
+	}
+	if (ImGui::Button("Button")) {
+		UIE.addButton();
 		UIEitembox = false;
 	}
 	//Used to prevent clicking generating a new polygon.
@@ -425,52 +553,52 @@ void EngineInterface::UIEitem(ClientHandler &client, PhysicsEngine &physics, Res
 
 bool EngineInterface::copyUI() {
 	bool copied = false;
-	for each (UIRectangle box in UIE.rectangles) {
-		if (box.selected) {
-			UIE.clipboard.rect.push_back(box);
+
+	for (InterfaceItem* item : UIE.Interface_Items) {
+		if (item->GetSelected()) {
+			UIE.Interface_Clip.push_back(item);
 			copied = true;
 		}
 	}
-	for each (UILabel label in UIE.labels) {
-		if (label.selected) {
-			UIE.clipboard.label.push_back(label);
-			copied = true;
-		}
-	}
+
+
+
 	return copied;
 }
 
 void EngineInterface::pasteUI() {
 	glm::vec2 mousePos(UIEboxx, UIEboxy);
-	for each (UIRectangle box in UIE.clipboard.rect) {
-		pointToScreen(box.topLeft, uiWidth, uiHeight);
-		int dx = mousePos.x - box.topLeft.x;
-		int dy = mousePos.y - box.topLeft.y;
-		pointToScreen(box.lowRight, uiWidth, uiHeight);
-		box.lowRight.x += dx;
-		box.lowRight.y += dy;
-		box.topLeft.x = mousePos.x;
-		box.topLeft.y = mousePos.y;
-		screenToPoint(box.topLeft);
-		screenToPoint(box.lowRight);
-		UIE.addRect(box);
-	}
-	for each (UILabel lbl in UIE.clipboard.label) {
-		glm::vec2 tinyPos = mousePos;
-		screenToPoint(tinyPos);
-		lbl.point = tinyPos;
-		UIE.addLabel(lbl);
-	}
+	std::cout << "Needs doing" << std::endl;
+
+	//for each (UIRectangle box in UIE.clipboard.rect) {
+	//	pointToScreen(box.topLeft, uiWidth, uiHeight);
+	//	int dx = mousePos.x - box.topLeft.x;
+	//	int dy = mousePos.y - box.topLeft.y;
+	//	pointToScreen(box.lowRight, uiWidth, uiHeight);
+	//	box.lowRight.x += dx;
+	//	box.lowRight.y += dy;
+	//	box.topLeft.x = mousePos.x;
+	//	box.topLeft.y = mousePos.y;
+	//	screenToPoint(box.topLeft);
+	//	screenToPoint(box.lowRight);
+	//	UIE.addRect(box);
+	//}
+	//for each (UILabel lbl in UIE.clipboard.label) {
+	//	glm::vec2 tinyPos = mousePos;
+	//	screenToPoint(tinyPos);
+	//	lbl.point = tinyPos;
+	//	UIE.addLabel(lbl);
+	//}
 }
 
 void EngineInterface::pointToScreen(glm::vec2 &pos, int width, int height) {
 	pos.x = pos.x*UIEzoom*width + xDisplacement + UIEx;
-	pos.y = pos.y*UIEzoom*height + 50 + UIEy;
+	pos.y = pos.y*UIEzoom*height + UIEy;
 }
 
 void EngineInterface::screenToPoint(glm::vec2 &pos) {
 	pos.x = (pos.x - UIEx - xDisplacement) / (UIEzoom * uiWidth);
-	pos.y = (pos.y - 50 - UIEy) / (UIEzoom * uiHeight);
+	pos.y = (pos.y - UIEy) / (UIEzoom * uiHeight);
 }
 
 void EngineInterface::movePoint(glm::vec2 &pos, int width, int height, int xChange, int yChange) {
@@ -478,7 +606,7 @@ void EngineInterface::movePoint(glm::vec2 &pos, int width, int height, int xChan
 	pos.x += xChange;
 	pos.y += yChange;
 	pos.x = (pos.x - UIEx - xDisplacement) / (UIEzoom * width);
-	pos.y = (pos.y - UIEy - 50) / (UIEzoom * height);
+	pos.y = (pos.y - UIEy) / (UIEzoom * height);
 }
 
 void EngineInterface::scalePoint(glm::vec2 &pos, int width, int height, float xChange, float yChange) {
@@ -486,7 +614,7 @@ void EngineInterface::scalePoint(glm::vec2 &pos, int width, int height, float xC
 	pos.x += pos.x*xChange;
 	pos.y += pos.y*yChange;
 	pos.x = (pos.x - UIEx - xDisplacement) / (UIEzoom * width);
-	pos.y = (pos.y - UIEy - 50) / (UIEzoom * height);
+	pos.y = (pos.y - UIEy) / (UIEzoom * height);
 }
 
 bool EngineInterface::pointInRect(glm::vec2 point, glm::vec2 topLeft, glm::vec2 lowRight, int width, int height) {
@@ -506,6 +634,7 @@ bool EngineInterface::pointInRect(glm::vec2 point, glm::vec2 topLeft, glm::vec2 
 }
 
 void EngineInterface::findSelection() {
+	//Checks if the left shift is held. If it isn't, all previously selected options will be deselected.
 	ImGuiIO & io = ImGui::GetIO();
 	ImVec2 mousePos = ImGui::GetMousePos();
 	if (io.KeysDown[GLFW_KEY_LEFT_SHIFT]) {
@@ -513,77 +642,28 @@ void EngineInterface::findSelection() {
 	}
 	else {
 		UIE.deselectAll();
-		for each (std::pair<UISelectType, bool> p in selectedTypes) {
+		for (std::pair<UIType, bool> p : selectedTypes) {
 			selectedTypes.at(p.first) = false;
 		}
 	}
-	int selectIndex = 0;
-	///Lines
-	for each (Line line in UIE.lines) {
-		if (line.selected) {
-			//NEED TO ADD COLLISION DETECTION FOR LINE.
-		}
-		selectIndex++;
-	}
-	selectIndex = 0;
-	///Percentage boxes.
-	for each (UIPercentBar pb in UIE.bars) {
-		if (pointInRect({ mousePos.x,mousePos.y }, pb.topLeft, pb.lowRight, uiWidth, uiHeight)) {
-			pb.selected = true;
-			UIE.bars[selectIndex] = pb;
-			selectedTypes.at(s_PBar) = true;
-		}
-		selectIndex++;
-	}
-	selectIndex = 0;
-	///Labels
-	for each (UILabel lbl in UIE.labels) {
-		ImVec2 txtSize = ImGui::CalcTextSize(lbl.text.c_str());
-		glm::vec2 pos = lbl.point;
-		pointToScreen(pos, uiWidth, uiHeight);
-		if (pointInRect({ mousePos.x,mousePos.y }, { pos.x - 5, pos.y - 5 }, { pos.x + (txtSize.x*(lbl.fontSize / ImGui::GetFontSize())) + 5, pos.y + lbl.fontSize + 5 })) {
-			lbl.selected = true;
-			UIE.labels[selectIndex] = lbl;
-			selectedTypes.at(s_Label) = true;
-		}
-		selectIndex++;
-	}
-	selectIndex = 0;
-	///Rectangles
-	for each (UIRectangle rect in UIE.rectangles) {
-		if (pointInRect({ mousePos.x,mousePos.y }, rect.topLeft, rect.lowRight, uiWidth, uiHeight)) {
-			rect.selected = true;
-			UIE.rectangles[selectIndex] = rect;
-			selectedTypes.at(s_Rectangle) = true;
-		}
-		selectIndex++;
-	}
-	selectIndex = 0;
-	///Polygons
-	for each (UIPolygon poly in UIE.polygons) {
-		glm::vec2 squarePointA(1.0f, 1.0f);
-		glm::vec2 squarePointB(0.0f, 0.0f);
-		for each (glm::vec2 point in poly.points) {
-			if (point.x < squarePointA.x) {
-				squarePointA.x = point.x;
+
+
+	//Gets mouse position between 0 and 1.
+	glm::vec2 mouseRelative = { mousePos.x, mousePos.y };
+	screenToPoint(mouseRelative);
+
+	for (InterfaceItem* item : UIE.Interface_Items) {
+		//Checks if mouse intersects the items bounding area.
+		try {
+			if (item->InBoundingBox(mouseRelative)) {
+				item->SetSelected(true);
+				selectedTypes[item->GetType()] = true;
 			}
-			if (point.y < squarePointA.y) {
-				squarePointA.y = point.y;
-			}
-			if (point.x > squarePointB.x) {
-				squarePointB.x = point.x;
-			}
-			if (point.y > squarePointB.y) {
-				squarePointB.y = point.y;
-			}
+		}
+		catch (std::exception ex) {
+			std::cout << "An error occured in selecting an item. Type ID:" << item->GetType() << std::endl;
 		}
 
-		if (pointInRect({ mousePos.x,mousePos.y }, squarePointA, squarePointB, uiWidth, uiHeight)) {
-			poly.selected = true;
-			UIE.polygons[selectIndex] = poly;
-			selectedTypes.at(s_Poly) = true;
-		}
-		selectIndex++;
 	}
 }
 
@@ -594,130 +674,28 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 	uiWidth = width - xDisplacement;
 	uiHeight = (uiWidth / 16.0f)*9.0f;
 
-	if (client.engineView != PRODUCT) {
-		ImGui::SetNextWindowPos(ImVec2(xDisplacement, 50));
-	}
-	else {
-		ImGui::SetNextWindowPos(ImVec2(0, 0));
-	}
-	
+	ImGui::SetNextWindowPos(ImVec2(xDisplacement, UIEy));
 	ImGui::SetNextWindowSize(ImVec2(uiWidth,uiHeight));
 	ImGui::Begin("##UIOverlay", (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
-	
+
+
+
+	//All objects will have a position of 0-1;
+	//Rendering the created objects.
+
+	UIE.uiWidth = uiWidth;
+	UIE.uiHeight = uiHeight;
+	for (InterfaceItem* item : UIE.Interface_Items) {
+		item->Render(uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+	}
+
+	if (client.engineView == Game) {
+		debug_msg_box.Render(uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+	}
+
 
 	ImGuiIO & io = ImGui::GetIO();
 	ImDrawList * drawList = ImGui::GetOverlayDrawList();
-	//All objects will have a position of 0-1;
-
-
-	//Rendering the created objects.
-	///Percentage bars.
-	if (UIE.bars.size() > 0) {
-		for (int b = 0; b < UIE.bars.size(); b++) {
-			UIPercentBar pb = UIE.bars[b];
-			pb.calcFill();
-			pointToScreen(pb.topLeft, uiWidth, uiHeight);
-			pointToScreen(pb.lowRight, uiWidth, uiHeight);
-			pointToScreen(pb.barPos, uiWidth, uiHeight);
-
-			if (pb.outlined) {
-				drawList->AddRectFilled({ pb.topLeft.x, pb.topLeft.y }, { pb.lowRight.x, pb.lowRight.y }, ImGui::ColorConvertFloat4ToU32({ pb.lineCol.x,pb.lineCol.y,pb.lineCol.z,pb.lineCol.w }));
-			}
-			drawList->AddRectFilled({ pb.topLeft.x + pb.paddingWidth, pb.topLeft.y + pb.paddingWidth }, { pb.lowRight.x - pb.paddingWidth, pb.lowRight.y - pb.paddingWidth }, ImGui::ColorConvertFloat4ToU32({ pb.empty_fillCol.x,pb.empty_fillCol.y,pb.empty_fillCol.z,pb.empty_fillCol.w }));
-			if (pb.barFillDirection == bfd_LEFTRIGHT) {
-				drawList->AddRectFilled({ pb.topLeft.x + pb.paddingWidth, pb.topLeft.y + pb.paddingWidth }, { pb.barPos.x, pb.barPos.y - pb.paddingWidth }, ImGui::ColorConvertFloat4ToU32({ pb.full_fillCol.x,pb.full_fillCol.y,pb.full_fillCol.z,pb.full_fillCol.w }));
-			}
-
-		}
-	}
-
-	///Lines
-	if (UIE.lines.size() > 0) {
-		for (int l = 0; l < UIE.lines.size(); l++) {
-			Line line = UIE.getLine(l, uiWidth, uiHeight);
-			drawList->AddLine({ line.startPos.x*UIEzoom + xDisplacement + UIEx, line.startPos.y*UIEzoom + 50 + UIEy }, { line.endPos.x*UIEzoom + xDisplacement + UIEx, line.endPos.y*UIEzoom + 50 + UIEy }, IM_COL32(line.colour.x, line.colour.y, line.colour.z, line.colour.w));
-		}
-	}
-	///Rectangles
-	if (UIE.rectangles.size() > 0) {
-		for (int b = 0; b < UIE.rectangles.size(); b++) {
-			UIRectangle box = UIE.getRect(b, uiWidth, uiHeight);
-			if (box.filled) {
-				drawList->AddRectFilledMultiColor({ box.topLeft.x*UIEzoom + xDisplacement + UIEx, box.topLeft.y*UIEzoom + 50 + UIEy },
-					{ box.lowRight.x*UIEzoom + xDisplacement + UIEx, box.lowRight.y*UIEzoom + 50 + UIEy },
-					ImGui::ColorConvertFloat4ToU32({ box.cornerA.x,box.cornerA.y,box.cornerA.z,box.cornerA.w }),
-					ImGui::ColorConvertFloat4ToU32({ box.cornerB.x,box.cornerB.y,box.cornerB.z,box.cornerB.w }),
-					ImGui::ColorConvertFloat4ToU32({ box.cornerC.x,box.cornerC.y,box.cornerC.z,box.cornerC.w }),
-					ImGui::ColorConvertFloat4ToU32({ box.cornerD.x,box.cornerD.y,box.cornerD.z,box.cornerD.w }));
-			}
-			else if (box.outlined) {
-				drawList->AddRect({ box.topLeft.x*UIEzoom + xDisplacement + UIEx,box.topLeft.y*UIEzoom + 50 + UIEy }, { box.lowRight.x*UIEzoom + xDisplacement + UIEx,box.lowRight.y*UIEzoom + 50 + UIEy }, ImGui::ColorConvertFloat4ToU32({ box.lineCol.x,box.lineCol.y,box.lineCol.z,box.lineCol.w }));
-			}
-			else {
-				
-			}
-		}
-	}
-	///Polygons
-	if (UIE.polygons.size() > 0) {
-		for (int p = 0; p < UIE.polygons.size(); p++) {
-			UIPolygon pol = UIE.getPolygon(p, width, height);
-			if (pol.points.size() > 0 && pol.filled) {
-				for each (glm::vec2 point in pol.points) {
-					drawList->PathLineTo({ point.x*UIEzoom + xDisplacement + UIEx, point.y*UIEzoom + 50 + UIEy });
-				}
-				drawList->PathFillConvex(IM_COL32(pol.fillCol.x, pol.fillCol.y, pol.fillCol.z, pol.fillCol.w));
-			}
-			else if (pol.points.size() > 0 && !pol.filled) {
-				std::vector<ImVec2> convPoints;
-				for each (glm::vec2 polyPoint in pol.points) {
-					ImVec2 x(polyPoint.x*UIEzoom + xDisplacement + UIEx,polyPoint.y*UIEzoom + 50 + UIEy);
-					convPoints.push_back(x);
-				}
-				drawList->AddPolyline(&convPoints[0], convPoints.size(), ImGui::ColorConvertFloat4ToU32({ pol.lineCol.x,pol.lineCol.y,pol.lineCol.z,pol.lineCol.w }), false, pol.thickness);
-			}
-		}
-	}
-	///Labels
-	if (UIE.labels.size() > 0) {
-		ImFont *font = ImGui::GetFont();
-		ImFont newFont = *ImGui::GetFont();
-
-		for (int l = 0; l < UIE.labels.size(); l++) {
-			UILabel label = UIE.labels[l];
-
-
-			pointToScreen(label.point, uiWidth, uiHeight);
-			ImVec2 txtSize = ImGui::CalcTextSize(label.text.c_str());
-			if (label.backFill) {
-				drawList->AddRectFilled({ label.point.x - 5,label.point.y - 5 }, { label.point.x + (txtSize.x*(label.fontSize / font->FontSize)) + 5,label.point.y + label.fontSize + 5 }, ImColor(label.backColour.x, label.backColour.y, label.backColour.z, label.backColour.w), 1.0f);
-			}
-			if (label.outLine) {
-				drawList->AddRect({ label.point.x - 5,label.point.y - 5 }, { label.point.x + (txtSize.x*(label.fontSize / font->FontSize)) + 5,label.point.y + label.fontSize + 5 }, ImColor(label.borderColour.x, label.borderColour.y, label.borderColour.x, label.borderColour.w), 1.0f);
-			}
-
-			drawList->AddText(
-				&newFont,
-				label.fontSize,
-				{ label.point.x, label.point.y },
-				ImGui::ColorConvertFloat4ToU32({ label.foreColour.x,label.foreColour.y,label.foreColour.z,label.foreColour.w }),
-				label.text.c_str(), 0, 0.0f, 0);
-		}
-	}
-
-
-	if (client.engineView == Game) {
-		UILabel dbgClone = debug_msg_box;
-		pointToScreen(dbgClone.point, uiWidth, uiHeight);
-		drawList->AddText(
-			ImGui::GetFont(),
-			dbgClone.fontSize,
-			{ dbgClone.point.x, dbgClone.point.y },
-			ImGui::ColorConvertFloat4ToU32({ dbgClone.foreColour.x,dbgClone.foreColour.y,dbgClone.foreColour.z,dbgClone.foreColour.w }),
-			dbgClone.text.c_str(), 0, 0.0f, 0);
-	}
-
-
 
 	if (client.engineView == UIEditor) {
 
@@ -766,57 +744,11 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 				else {
 					scale = (float)client.ScrollData * 0.1;
 				}
-				
-				index = 0;
-				for each (UIPercentBar pb in UIE.bars) {
-					if (pb.selected) {
-						scalePoint(pb.topLeft, uiWidth, uiHeight, scale, scale);
-						scalePoint(pb.lowRight, uiWidth, uiHeight, scale, scale);
-						UIE.bars[index] = pb;
-					}
-					index++;
-				}
-				index = 0;
-				for each (UILabel lbl in UIE.labels) {
-					if (lbl.selected) {
-						lbl.fontSize += scale*10;
-						UIE.labels[index] = lbl;
-					}
-					index++;
-				}
-				index = 0;
-				for each (Line line in UIE.lines) {
-					if (line.selected) {
-						scalePoint(line.startPos, uiWidth, uiHeight, scale, scale);
-						scalePoint(line.endPos, uiWidth, uiHeight, scale, scale);
-						UIE.lines[index] = line;
-					}
-					index++;
-				}
-				index = 0;
-				for each (UIRectangle rect in UIE.rectangles) {
-					if (rect.selected) {
-						scalePoint(rect.topLeft, uiWidth, uiHeight, scale, scale);
-						scalePoint(rect.lowRight, uiWidth, uiHeight, scale, scale);
-						UIE.rectangles[index] = rect;
-					}
-					index++;
-				}
-				index = 0;
-				for each (UIPolygon poly in UIE.polygons) {
-					if (poly.selected) {
-						int ind = 0;
-						for each (glm::vec2 point in poly.points) {
-							scalePoint(point, uiWidth, uiHeight, scale, scale);
-							poly.points[ind] = point;
-							ind++;
-						}
-						UIE.polygons[index] = poly;
-					}
-					index++;
+
+				for (InterfaceItem* item : UIE.Interface_Items) {
+					item->Scale({ scale, scale }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 				}
 			}
-
 		}
 		
 		//Dragging.
@@ -866,59 +798,11 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 
 					bool anyItemSelected = false;
 
-
-					int index = 0;
-					for each (Line line in UIE.lines) {
-						if (line.selected) {
+					for (InterfaceItem* item : UIE.Interface_Items) {
+						if (item->GetSelected()) {
 							anyItemSelected = true;
-							movePoint(line.startPos, uiWidth, uiHeight, xChange, yChange);
-							movePoint(line.endPos, uiWidth, uiHeight, xChange, yChange);
-							UIE.lines[index] = line;
+							item->Move({ xChange, yChange }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 						}
-						index++;
-					}
-					index = 0;
-					for each (UIPercentBar pb in UIE.bars) {
-						if (pb.selected) {
-							anyItemSelected = true;
-							movePoint(pb.topLeft, uiWidth, uiHeight, xChange, yChange);
-							movePoint(pb.lowRight, uiWidth, uiHeight, xChange, yChange);
-							UIE.bars[index] = pb;
-						}
-						index++;
-					}
-					index = 0;
-					for each (UILabel lbl in UIE.labels) {
-						if (lbl.selected) {
-							anyItemSelected = true;
-							movePoint(lbl.point, uiWidth, uiHeight, xChange, yChange);
-							UIE.labels[index] = lbl;
-						}
-						index++;
-					}
-					index = 0; 
-					for each (UIRectangle rect in UIE.rectangles) {
-						if (rect.selected) {
-							anyItemSelected = true;
-							movePoint(rect.topLeft, uiWidth, uiHeight, xChange, yChange);
-							movePoint(rect.lowRight, uiWidth, uiHeight, xChange, yChange);
-							UIE.rectangles[index] = rect;
-						}
-						index++;
-					}
-					index = 0;
-					for each (UIPolygon poly in UIE.polygons) {
-						if (poly.selected) {
-							anyItemSelected = true;
-							int ind = 0;
-							for each (glm::vec2 point in poly.points) {
-								movePoint(point, uiWidth, uiHeight, xChange, yChange);
-								poly.points[ind] = point;
-								ind++;
-							}
-							UIE.polygons[index] = poly;
-						}
-						index++;
 					}
 					UIExo = mousePos.x;
 					UIEyo = mousePos.y;
@@ -935,6 +819,7 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 
 		//Adding designs.
 		if (clickMode == CREATE) {
+			//When the user double clicks or presses enter, the new polygon will be completed.
 			if (ImGui::IsMouseDoubleClicked(0) | io.KeysDown[GLFW_KEY_ENTER]) {
 				if (UIEpos.size() == 2) {
 					UIE.addLine(UIEpos[0], UIEpos[1], glm::vec4(255, 0, 0, 255));
@@ -944,6 +829,7 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 				}
 				UIEpos.clear();
 			}
+			//If the user continues to click whilst still generating the polygon, the new point will be added to a list.
 			else if (ImGui::IsMouseClicked(0)) {
 				if (mousePos.x > xDisplacement && mousePos.y > 50) {
 					if (UIEitembox && mousePos.x >= UIEboxx && mousePos.x <= UIEboxx + UIEboxwidth && mousePos.y >= UIEboxy && mousePos.y <= UIEboxy + UIEboxheight) {
@@ -1000,83 +886,21 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 	ImGui::End();
 
 
+	
 
 	if (UIEitembox && client.engineView == UIEditor) {
 		UIEitem(client, physics, res, scripts);
 	}
 }
 
-void EngineInterface::modifyScriptRef(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
-	ImGui::Begin("Script Refs", &UIErefopen);
-
-	int index = 0;
-	for each (ComponentScript * scr in physics.scripts) { //Loop through each script.
-		if (ImGui::TreeNode((scr->GetName() + "##scriptTree" + std::to_string(index)).c_str())) {
-
-
-			///Labels.
-			std::map<std::string, UILabel*>* lblref = scr->GetLabelPointers();
-			for each (std::pair<std::string, UILabel*> x in *lblref) { //Loops through each reference to a UI label.
-
-				if (ImGui::Selectable((x.first + "##" + x.first + scr->GetName()).c_str())) {
-
-				}
-				if (ImGui::IsItemHovered() && selectedTypes.at(s_Label) && ImGui::IsMouseReleased(0)) {
-					int lblIndex = 0;
-					for each (UILabel l in UIE.labels) {
-						if (l.selected) {
-							x.second = &UIE.labels[lblIndex];
-							scriptPointer_labels.at(scr).at(x.first) = &UIE.labels[lblIndex];
-
-
-							glm::vec2 revertDist = refStartPos - glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y);
-							movePoint(UIE.labels[lblIndex].point, uiWidth, uiHeight, revertDist.x, revertDist.y);
-							
-						}
-						lblIndex++;
-					}
-				}
-			}
-
-			///Percentage boxes.
-			std::map<std::string, UIPercentBar*>* pbarref = scr->GetPercentBarPointers();
-			for each (std::pair<std::string, UIPercentBar*> x in *pbarref) { //Loops through each reference to a UI label.
-
-				if (ImGui::Selectable((x.first + "##" + x.first + scr->GetName()).c_str())) {
-
-				}
-				if (ImGui::IsItemHovered() && selectedTypes.at(s_PBar) && ImGui::IsMouseReleased(0)) {
-					int refIndex = 0;
-					for each (UIPercentBar pb in UIE.bars) {
-						if (pb.selected) {
-							x.second = &UIE.bars[refIndex];
-							scriptPointer_percBar.at(scr).at(x.first) = &UIE.bars[refIndex];
-
-
-							glm::vec2 revertDist = refStartPos - glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y);
-							movePoint(UIE.bars[refIndex].topLeft, uiWidth, uiHeight, revertDist.x, revertDist.y);
-							movePoint(UIE.bars[refIndex].lowRight, uiWidth, uiHeight, revertDist.x, revertDist.y);
-
-						}
-						refIndex++;
-					}
-				}
-
-			}
-
-			ImGui::TreePop();
-		}
-
-		index++;
-	}
-
-	ImGui::End();
-}
 
 //Engine
 
 //A menu for exiting the game.
-void EngineInterface::playStopGame(ClientHandler &client) {
+void EngineInterface::playStopGame(ClientHandler &client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts) {
+	UIEy += 50;
+
+
 	ImGui::Begin("Game", (bool*)true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
 	ImGui::SetWindowSize(ImVec2(width - xDisplacement, 50));
 	if (client.engineView == Editor) {
@@ -1097,10 +921,13 @@ void EngineInterface::playStopGame(ClientHandler &client) {
 		}
 		else if (client.engineView == Editor) {
 			xDisplacement = 0;
-			yDisplacement = 0;
+			yDisplacement = 50;
 
 			client.engineView = Game;
 			client.InGame = true;
+
+			OnStart();
+
 		}
 	}
 
@@ -1118,6 +945,10 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 	//Colour of the interface.
 	NormalDesign();
 
+
+	UIEy = 0;
+
+
 	//Entering the engine game.
 	if (ImGui::IsMouseClicked(0)) {
 		int mouse_x = ImGui::GetMousePos().x;
@@ -1129,15 +960,28 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 		}
 	}
 
+
+	if (client.engineView != PRODUCT && client.engineView != Game) {
+		Menu(client, physics, res, script);
+	}
+	else {
+		UIEy = (height - uiHeight) / 2;
+		if (UIEy < 50) {
+			UIEy = 50;
+		}
+	}
+
+
 	if (client.engineView == UIEditor) {
 		xDisplacement = 0;
 		yDisplacement = 0;
 
 		modifyScriptRef(client, physics, res, script);
 	} else if (client.engineView == PRODUCT) {
+		
 		userInterface(client, physics, res, script);
 	} else if (client.engineView == Game | client.engineView == Editor) { //inGame
-		playStopGame(client);
+		playStopGame(client, physics, res, script);
 	}
 
 	if (client.showUI && (client.engineView == Game | client.engineView == UIEditor | client.engineView == Editor)) {
@@ -1149,9 +993,7 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 	}
 
 	if (client.viewingCursor) {
-		if (client.engineView != PRODUCT) {
-			Menu(client, physics, res, script);
-		}
+
 
 		
 		if (client.engineView != UIEditor && client.engineView != PRODUCT && client.engineView != Game) {
@@ -1164,7 +1006,7 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 					displayScenes(client, physics);
 					displayActors(res);
 					displayWorld(client, physics);
-					displayUserInterfaces(client);
+					displayUserInterfaces(client, physics);
 
 
 					xDisplacement = ImGui::GetWindowWidth();
@@ -1230,7 +1072,6 @@ void EngineInterface::DragNDrop(ClientHandler &client, PhysicsEngine &physics, R
 	else {
 		if (ImGui::IsMouseReleased(0)) {
 			if (inScene(mouseNow)) {
-				std::cout << dragItem.itemType;
 				if (dragItem.itemType == 1) {
 					client.world.addObject(dragItem.obj, true);
 				}
@@ -1302,7 +1143,7 @@ void EngineInterface::importItem(ClientHandler &client, PhysicsEngine &physics, 
 }
 
 
-void EngineInterface::displayUserInterfaces(ClientHandler &client) {
+void EngineInterface::displayUserInterfaces(ClientHandler &client, PhysicsEngine& physics) {
 	if (ImGui::TreeNode("Interfaces")) {
 
 		std::vector<std::string> uiNames;
@@ -1323,7 +1164,7 @@ void EngineInterface::displayUserInterfaces(ClientHandler &client) {
 			if (ImGui::Selectable(s.c_str(), s == UIE.UIName, ImGuiSelectableFlags_AllowDoubleClick)) {
 				if (ImGui::IsMouseDoubleClicked(0)) {
 					if (!opened) {
-						changeUI(client, s);
+						changeUI(client, physics, s);
 					}
 				}
 

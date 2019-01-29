@@ -48,6 +48,7 @@ bool ClientHandler::loadProject() {
 			project.directory = WorkingDir;
 			project.load(projFilePath);
 
+
 			return world.loadBinary(WorkingDir + "Scenes\\" + project.startScene);
 
 		}
@@ -291,6 +292,7 @@ void ClientHandler::update(GLFWwindow *window)
 		player.yaw = mainCamera.getYaw();
 
 		if (closeProgram) {
+			project.save();
 			glfwSetWindowShouldClose(window, true);
 		}
 
@@ -300,11 +302,20 @@ void ClientHandler::update(GLFWwindow *window)
 
 void ClientHandler::mouse(GLFWwindow* window) {
 	double xpos, ypos;
-	glfwGetCursorPos(window, &xpos, &ypos);
-	mouse_xOffset = (float)xpos - lastX;
-	mouse_yOffset = lastY - (float)ypos;
-	lastX = (float)xpos;
-	lastY = (float)ypos;
+
+	//Mouse data will only be received if the cursor is embedded in program, not visible.
+	if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED) {
+		glfwGetCursorPos(window, &xpos, &ypos);
+		mouse_xOffset = (float)xpos - lastX;
+		mouse_yOffset = lastY - (float)ypos;
+		lastX = (float)xpos;
+		lastY = (float)ypos;
+	}
+	else {
+		mouse_xOffset = 0;
+		mouse_yOffset = 0;
+	}
+
 }
 
 

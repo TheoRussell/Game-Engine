@@ -30,6 +30,7 @@ public:
 	std::string name = "Project1";
 	std::string directory;
 	std::string startScene = "Scene";
+	std::string startInterface = "UI1";
 
 private:
 

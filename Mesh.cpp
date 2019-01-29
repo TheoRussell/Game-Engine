@@ -76,10 +76,10 @@ Texture Mesh::genTexture(std::string path) {
 	Texture result;
 	result.id = textureId;
 	if (path.find("_specular") != std::string::npos) {
-		result.type = "tSpecular";
+		result.type = "m_specular";
 	}
 	else {
-		result.type = "tDiffuse";
+		result.type = "m_diffuse";
 	}
 
 	glBindTexture(GL_TEXTURE_2D, textureId);
@@ -158,11 +158,11 @@ void Mesh::bindMaterials(Shader shader) {
 			glActiveTexture(GL_TEXTURE0 + textureIndex); //Want to modify this texture.
 
 			std::string type = t.type;
-			if (type != "tDiffuse" && type != "tSpecular") {
+			if (type != "m_diffuse" && type != "m_specular") {
 				std::cout << "No texture type by the name of " << m.texture_paths[textureIndex -1] << std::endl;
 			}
 			else {
-				shader.setI(("material[" + std::to_string(materialIndex) + "]." + type).c_str(), textureIndex); //Property of texture.
+				shader.setI((type + "[" + std::to_string(materialIndex) + "]").c_str(), textureIndex); //Property of texture.
 				glBindTexture(GL_TEXTURE_2D, t.id); //Applies texture to the current shader.
 				glActiveTexture(GL_TEXTURE0 + textureIndex); //Activates texture.
 				textureIndex++;

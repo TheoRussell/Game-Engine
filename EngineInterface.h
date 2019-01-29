@@ -1,6 +1,6 @@
 #pragma once
-#include "imgui\imgui.h" //Gui
-#include "imgui\imgui_impl_glfw_gl3.h" //Example imgui
+
+#include "UIElements.h"
 
 #include "ClientHandler.h"
 #include "Physics\PhysicsEngine.h"
@@ -11,7 +11,6 @@
 
 
 
-#include "UIElements.h"
 
 
 struct DragPacket {
@@ -29,13 +28,18 @@ class EngineInterface
 public:
 	EngineInterface();
 	~EngineInterface();
-	void OnLoad(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
-	void OnStart(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
+	void OnLoad(ClientHandler & client, PhysicsEngine & physics);
+	void OnStart();
 	void OnUpdate(float deltaTime, ClientHandler & client, PhysicsEngine & physics, ResourceManager & res);
-	void changeUI(ClientHandler & client, std::string);
+
+	void changeUI(ClientHandler & client, PhysicsEngine & physics, std::string name);
 	void deleteUI(ClientHandler & client, std::string name);
 	void NormalDesign();
 	void Menu(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
+
+	bool loadInterface(std::string path, ClientHandler & client, PhysicsEngine & physics);
+	void saveInterface(ClientHandler & client);
+
 	void debug_write(std::string msg);
 	void projects(ClientHandler & client);
 	void UIEitem(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
@@ -50,13 +54,15 @@ public:
 	void findSelection();
 	void userInterface(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
 	void modifyScriptRef(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
-	void playStopGame(ClientHandler & client);
+
+	void playStopGame(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
 	void update(bool & inGame, ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & script);
 	bool inScene(ImVec2 mousePos);
 	void DragNDrop(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
 	void showReload(ClientHandler & client);
 	void importItem(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
-	void displayUserInterfaces(ClientHandler & client);
+
+	void displayUserInterfaces(ClientHandler & client, PhysicsEngine & physics);
 	void displayScenes(ClientHandler & client, PhysicsEngine & physics);
 	void displayWorld(ClientHandler & client, PhysicsEngine & physics);
 	void displaySelectedObj(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res);
@@ -70,16 +76,26 @@ public:
 	void displayActors(ResourceManager & res);
 	
 
-	int xDisplacement = 0;
-	int yDisplacement = 0;
+
 
 
 	std::map<std::string, float> debug_messages;
 
 
-	std::map < ComponentScript*, std::map<std::string, UILabel*> > scriptPointer_labels;
-	std::map < ComponentScript*, std::map<std::string, UIPercentBar*> > scriptPointer_percBar;
+	//std::map < ComponentScript*, std::map<std::string, UILabel*> > scriptPointer_labels;
+	//std::map < ComponentScript*, std::map<std::string, UIPercentBar*> > scriptPointer_percBar;
+	//
+	std::map <ComponentScript*, std::map<std::string, InterfaceItem*>> scriptInterfacePointers;
+
 	UIElements UIE;
+
+	int width = 1920;
+	int height = 1080;
+	int UIEx = 0; //DISPLACEMENT of scene.
+	int UIEy = 0;
+	int xDisplacement = 0; //Displacement for tabs.
+	int yDisplacement = 0;
+
 private:
 	int uiWidth = 1920;
 	int uiHeight = 1080;
@@ -89,8 +105,6 @@ private:
 	int UIEy_s = 0;
 	//Usage
 	float UIEzoom = 1.0f;
-	int UIEx = 0; //DISPLACEMENT.
-	int UIEy = 0;
 	int UIExo = 0; //DRAGGING.
 	int UIEyo = 0;
 	int UIEdown = 0; //Timer.
@@ -107,7 +121,7 @@ private:
 	int UIEtimer = 0;
 	//Typing.
 	int UIEwritingTimer = 0;
-	std::map<UISelectType, bool> selectedTypes;
+	std::map<UIType, bool> selectedTypes;
 	//Script Refs
 	bool UIErefopen = true;
 	glm::vec2 refStartPos;
@@ -118,9 +132,6 @@ private:
 
 	UILabel debug_msg_box;
 
-
-	int width = 1920;
-	int height = 1080;
 
 	int showInspector = 1; //1 = Objects, 2 = Actors.
 	bool showImport = false;

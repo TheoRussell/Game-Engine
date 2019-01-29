@@ -4,7 +4,6 @@
 
 #include <map>
 #include "Physics\PhysicsBody.h"
-#include "AudioEngine\AudioSource.h"
 
 #ifndef SCRIPT_H
 #include "Components\Scripts\ComponentScript.h"
@@ -73,8 +72,6 @@ public:
 
 	std::vector<unsigned int> componentScriptIDs;
 	std::map<unsigned int, DataStorage> componentScriptData;
-	std::vector<AudioSource> au_source;
-
 
 	std::vector<glm::vec3> forces;
 	std::vector<glm::vec3> torques;
@@ -86,7 +83,9 @@ public:
 	std::vector<Actor> newActors;
 	bool deleteSelf = false;
 	bool exitGame = false;
+
 	std::string newScene = "";
+	std::string newUI = "";
 private:
 	bool selected;
 };
