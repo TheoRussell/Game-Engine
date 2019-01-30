@@ -13,12 +13,13 @@ PlayerController::~PlayerController() {
 }
 
 void PlayerController::OnStart() {
-	
+	AudioStream::AddBuffer("temp", AudioFile::generate("src\\sounds\\carMoving.wav"));
+	source = AudioSource::generate();
 }
 
 
-double timer = 0.0;
-bool c_down = false;
+
+
 
 void PlayerController::OnFixedUpdate(float deltaTime) {
 	///Updates 30 frames per second.
@@ -27,13 +28,17 @@ void PlayerController::OnFixedUpdate(float deltaTime) {
 	float multiplier = 4 * deltaTime;
 	timer += deltaTime;
 
-	//UIPBar* bar = dynamic_cast<UIPBar*>(GetInterfacePointers()->at("Test1"));
-	//if (bar != nullptr) {
-	//	bar->percent = 0.5f;
 
-	//	bar->SetFillColour({ std::abs(std::sin(255.0f * glm::radians(timer))), std::abs(std::cos(255.0f * glm::radians(timer))), 0.0f, 255.0f });
-	//}
+	if (AudioSource::checkState(source) != AL_PLAYING) {
+		AudioSource::playAudio(source, AudioStream::GetBuffer("car"));
+	}
 
+
+
+	if (KeyDown(KEY_T)) {
+		AudioSource::playAudio(source, AudioStream::GetBuffer("temp"));
+		
+	}
 
 
 	UIButton * bar = dynamic_cast<UIButton*>(GetInterfacePointers()->at("Levels"));
@@ -41,6 +46,9 @@ void PlayerController::OnFixedUpdate(float deltaTime) {
 		if (bar->Clicked) {
 			bar->Clicked = false;
 			ChangeUI("Levels");
+
+			int audioSource = AudioSource::generate();
+			AudioSource::playAudio(audioSource, AudioStream::GetBuffer("temp"));
 		}
 	}
 

@@ -42,25 +42,6 @@ void ComponentScript::update(glm::vec3 _pos, glm::vec3 _sca, float _pitch, float
 	yaw = _yaw;
 }
 
-
-
-//Audio functions.
-void ComponentScript::NewAudioSource(std::string name) {
-	
-}
-void ComponentScript::SetSound(std::string source, std::string sound) {
-	
-}
-void ComponentScript::PlaySound(std::string source) {
-
-}
-void ComponentScript::StopSound(std::string source) {
-
-}
-
-
-
-
 void ComponentScript::ChangeScene(std::string name) {
 	newScene = name;
 }
@@ -163,12 +144,12 @@ void ComponentScript::setScriptWindow(GLFWwindow *_window) {
 
 
 
-
 //User Interface Functions.
 bool ComponentScript::AddInterfaceReference(std::string s) {
 	UI_references.push_back(s);
 	return true;
 }
+
 
 std::map<std::string, InterfaceItem*>* ComponentScript::GetInterfacePointers() {
 	return &UI_elements;

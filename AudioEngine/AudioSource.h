@@ -3,6 +3,7 @@
 #include <al.h>
 #include <alc.h>
 #include <iostream>
+#include <map>
 
 inline namespace AudioSource
 {
@@ -23,4 +24,13 @@ inline namespace AudioSource
 	void setMaxDistance(int sourceID, float factor);
 
 };
+
+inline namespace AudioStream {
+	extern std::map<std::string, int> _audio_buffers_;
+
+	void AddBuffer(std::string name, int buffer);
+	int GetBuffer(std::string name);
+	void Clean();
+}
+
 

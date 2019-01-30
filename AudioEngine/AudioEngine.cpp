@@ -31,8 +31,8 @@ AudioEngine::AudioEngine()
 	alListener3f(AL_VELOCITY, 0.0f, 0.0f, 0.0f);
 	alListenerfv(AL_ORIENTATION, listenerOri);
 
-	audioBuffers.insert(std::pair < std::string, ALuint>("test", (ALuint)AudioFile::generate("src\\sounds\\test.wav")));
-	audioBuffers.insert(std::pair < std::string, ALuint>("car", (ALuint)AudioFile::generate("src\\sounds\\boom.wav")));
+	AudioStream::AddBuffer("test", (ALuint)AudioFile::generate("src\\sounds\\test.wav"));
+	AudioStream::AddBuffer("car", (ALuint)AudioFile::generate("src\\sounds\\boom.wav"));
 
 }
 
@@ -41,16 +41,6 @@ AudioEngine::~AudioEngine()
 	clean();
 }
 
-void AudioEngine::playSound(std::string name, std::string sound) {
-	if (audioSources.find(name) != audioSources.end() && audioBuffers.find(sound) != audioBuffers.end()) {
-		AudioSource::playAudio(audioSources.at(name), audioBuffers.at(sound));
-
-	}
-	else {
-		std::cout << "Could not locate that sound / name" << std::endl;
-	}
-	
-}
 
 unsigned int AudioEngine::newSource(std::string name) {
 	try {
@@ -73,21 +63,18 @@ void AudioEngine::update(Scene &scene) {
 	ALfloat listenerOri[] = { forward.x,forward.y,forward.z, 0.0f, 1.0f, 0.0f };
 	alListenerfv(AL_ORIENTATION, listenerOri);
 
-	for (std::pair<std::string, ALuint> audioSource : audioSources) {
-		if (AudioSource::checkState(audioSource.second) != AL_PLAYING) {
-			audioSources.erase(audioSource.first);
-			break;
-		}
-	}
+	//for (std::pair<std::string, ALuint> audioSource : audioSources) {
+	//	if (AudioSource::checkState(audioSource.second) != AL_PLAYING) {
+	//		audioSources.erase(audioSource.first);
+	//		break;
+	//	}
+	//}
 }
 
 
 
 void AudioEngine::clean() {
-	for (std::pair<std::string, ALuint> af : audioBuffers) {
-		alDeleteBuffers(1, &af.second);
-	}
-	audioBuffers.clear();
+	AudioStream::Clean();
 
 	for (std::pair<std::string, ALuint> as : audioSources) {
 		AudioSource::remove(as.second);

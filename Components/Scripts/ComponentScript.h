@@ -16,6 +16,7 @@
 #endif
 
 #include "AudioEngine\AudioSource.h"
+#include "AudioEngine\AudioFile.h"
 
 
 //Creating more engine driven key constants.
@@ -142,7 +143,6 @@
 #define KEY_PAD_EQUAL GLFW_KEY_KP_EQUAL
 
 
-
 struct ImpulseTransfer {
 	glm::vec3 force = glm::vec3(0.0f, 0.0f, 0.0f); //net force (N).
 	float time = 1.0f; //how long it's applied (seconds).
@@ -207,10 +207,6 @@ public:
 	ComponentScript(glm::vec3 _pos, glm::vec3 _sca, float _pitch, float _roll, float _yaw);
 	ComponentScript(glm::vec3 _pos, glm::vec3 _sca, float _pitch, float _roll, float _yaw, ComponentManager _components);
 	void update(glm::vec3 _pos, glm::vec3 _sca, float _pitch, float _roll, float _yaw);
-	void NewAudioSource(std::string name);
-	void SetSound(std::string source, std::string sound);
-	void PlaySound(std::string source);
-	void StopSound(std::string source);
 	void ChangeScene(std::string name);
 	std::string getNewScene();
 	void resetNewScene();
@@ -235,7 +231,9 @@ public:
 
 
 	bool AddInterfaceReference(std::string s);
+
 	std::map<std::string, InterfaceItem*>* GetInterfacePointers();
+
 	std::vector<std::string>* getNewInterfaceRefs();
 
 
@@ -355,8 +353,6 @@ public:
 
 	std::map<std::string, InterfaceItem*> UI_elements;
 	std::vector<std::string> UI_references;
-
-
 
 	bool keys[351] = {};
 	std::string newScene = "";

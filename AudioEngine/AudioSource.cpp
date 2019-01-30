@@ -24,17 +24,23 @@ void AudioSource::remove(unsigned int sourceID) {
 
 void AudioSource::playAudio(int sourceID, int bufferID) {
 	stopAudio(sourceID);
-	alGetError();
-	alSourcei(sourceID, AL_BUFFER, bufferID);
+	if (bufferID >= 0) {
+		alGetError();
+		alSourcei(sourceID, AL_BUFFER, bufferID);
 
-	int error = alGetError();
-	if (error != AL_NO_ERROR) {
-		std::cout << "Error loading audio" << error << std::endl;
+		int error = alGetError();
+		if (error != AL_NO_ERROR) {
+			std::cout << "Error loading audio" << error << std::endl;
+		}
+		else {
+
+			alSourcePlay(sourceID);
+		}
 	}
 	else {
-
-		alSourcePlay(sourceID);
+		std::cout << "Invalid buffer." << std::endl;
 	}
+
 
 }
 
@@ -100,4 +106,29 @@ void AudioSource::setRefDistance(int sourceID, float factor) {
 
 void AudioSource::setMaxDistance(int sourceID, float factor) {
 	alSourcef(sourceID, AL_MAX_DISTANCE, factor);
+}
+
+
+
+
+
+std::map<std::string, int> AudioStream::_audio_buffers_;
+
+
+void AudioStream::Clean() {
+	for (std::pair<std::string, int> af : _audio_buffers_) {
+		alDeleteBuffers(1, (ALuint*)af.second);
+	}
+	_audio_buffers_.clear();
+}
+
+int AudioStream::GetBuffer(std::string name) {
+	if (_audio_buffers_.find(name) != _audio_buffers_.end()) {
+		return (int)_audio_buffers_.at(name);
+	}
+	return -1;
+}
+
+void AudioStream::AddBuffer(std::string name, int buffer) {
+	_audio_buffers_.insert(std::pair<std::string, int>(name, buffer));
 }

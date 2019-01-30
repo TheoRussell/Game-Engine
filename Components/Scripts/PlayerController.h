@@ -10,6 +10,10 @@ public:
 	void OnRaycast(RayHit data) override;
 	void OnCollide(Collision c) override;
 
+	int source = 0;
+	double timer = 0.0;
+	bool c_down = false;
 private:
-
+	
+	
 };
