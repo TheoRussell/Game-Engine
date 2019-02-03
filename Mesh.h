@@ -39,6 +39,7 @@ public:
 	void drawInstanced(Shader shader, int count);
 	~Mesh();
 
+	std::string savedName = "";
 	std::string name="";
 private:
 	unsigned int VAO, VBO, EBO;

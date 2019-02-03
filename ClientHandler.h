@@ -106,11 +106,12 @@ public:
 	
 	float ScrollData;
 
-
-private:
-
+	//Storing previous mouse position to change change.
 	float lastX = 1080 / 2;
 	float lastY = 720 / 2;
+private:
+
+
 	float mouse_xOffset;
 	float mouse_yOffset;
 };

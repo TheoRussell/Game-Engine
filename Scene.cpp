@@ -235,7 +235,7 @@ bool Scene::loadBinary(std::string WorkingDir) {
 							obj.components.models.push_back(mc);
 						}
 						if (bw == BINARY_Script) {
-							obj.componentScriptIDs.push_back(BinaryFiles::getInt(file));
+							obj.componentScriptIDs.push_back(BinaryFiles::getString(file));
 						}
 
 					}
@@ -410,10 +410,10 @@ bool Scene::saveBinary(std::string WorkingDir) {
 						}
 					}
 				}
-				for each (int scriptID in obj.componentScriptIDs) {
+				for (std::string scriptID : obj.componentScriptIDs) {
 					bw = BINARY_Script;
 					BinaryFiles::writeBINARYType(file, bw);
-					BinaryFiles::writeInt(file, scriptID);
+					BinaryFiles::writeString(file, scriptID);
 				}
 
 				bw = BINARY_EOO;

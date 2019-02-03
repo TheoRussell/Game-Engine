@@ -53,28 +53,24 @@ bool UIElements::loadUI(std::ifstream &input) {
 					//Loading label element.
 					UILabel lbl;
 					lbl.Load(input);
-					lbl.SetID(genID());
 					labels.push_back(lbl);
 				}
 				else if (writeType == BINARY_Box) {
 					//Loading rectangle item.
 					UIRectangle rect;
 					rect.Load(input);
-					rect.SetID(genID());
 					rectangles.push_back(rect);
 				}
 				else if (writeType == BINARY_Poly) {
 					//Loading polygon.
 					UIPolygon poly;
 					poly.Load(input);
-					poly.SetID(genID());
 					polygons.push_back(poly);
 				}
 				else if (writeType == BINARY_Percent) {
 					//Percent bars.
 					UIPBar pb;
 					pb.Load(input);
-					pb.SetID(genID());
 					bars.push_back(pb);
 				}
 				else if (writeType == BINARY_Line) {
@@ -88,7 +84,6 @@ bool UIElements::loadUI(std::ifstream &input) {
 					//Buttons.
 					UIButton button;
 					button.Load(input);
-					button.SetID(genID());
 					buttons.push_back(button);
 				}
 			}

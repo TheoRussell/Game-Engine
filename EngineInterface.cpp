@@ -9,11 +9,9 @@ EngineInterface::EngineInterface()
 	selectedTypes.insert(std::pair<UIType, bool>(s_Label, false));
 	selectedTypes.insert(std::pair<UIType, bool>(s_Poly, false));
 	selectedTypes.insert(std::pair<UIType, bool>(s_PBar, false));
+	selectedTypes.insert(std::pair<UIType, bool>(s_Button, false));
 
 	debug_msg_box.DebugStyle();
-
-
-
 
 }
 
@@ -27,14 +25,13 @@ void EngineInterface::modifyScriptRef(ClientHandler &client, PhysicsEngine &phys
 	ImGui::Begin("Script Refs", &UIErefopen);
 
 	int index = 0;
-	for each (ComponentScript * scr in physics.scripts) { //Loop through each script.
-		if (ImGui::TreeNode((scr->GetName() + "##scriptTree" + std::to_string(index)).c_str())) { //Display the script name as a new node.
-
+	for (std::pair<std::string, ComponentScript*> scr : physics.scripts) { //Loop through each script.
+		if (ImGui::TreeNode((scr.second->GetName() + "##scriptTree" + std::to_string(index)).c_str())) { //Display the script name as a new node.
 
 																								  ///Labels.
-			for (std::pair<std::string, InterfaceItem*> pointerRef : *scr->GetInterfacePointers()) { //Loops through each reference to a UI element.	
+			for (std::pair<std::string, InterfaceItem*> pointerRef : *scr.second->GetInterfacePointers()) { //Loops through each reference to a UI element.	
 																									 //Checks if the user has selected an item, hovering it over an option and then releasing the button (to pair the reference to the element).
-				std::string identifier = pointerRef.first + "##" + std::to_string(index) + scr->GetName();
+				std::string identifier = pointerRef.first + "##" + std::to_string(index) + scr.second->GetName();
 				ImGui::Selectable(identifier.c_str());
 				if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(0)) {
 
@@ -43,7 +40,7 @@ void EngineInterface::modifyScriptRef(ClientHandler &client, PhysicsEngine &phys
 					for (InterfaceItem* item : UIE.Interface_Items) {
 						if (item->GetSelected()) {
 							pointerRef.second = item;
-							scriptInterfacePointers.at(scr).at(pointerRef.first) = item;
+							scriptInterfacePointers.at(scr.second).at(pointerRef.first) = item;
 							//Moves the element back to origin after pairing is complete.
 							item->Move(revertDist, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 
@@ -69,20 +66,20 @@ void EngineInterface::modifyScriptRef(ClientHandler &client, PhysicsEngine &phys
 
 void EngineInterface::OnLoad(ClientHandler &client, PhysicsEngine &physics) {
 
-	for (ComponentScript * s : physics.scripts) {
+	for (std::pair<std::string, ComponentScript*> scr : physics.scripts) {
 		//Runs through each script.
 		//For each new interface reference created, generate a map of the reference to the pointer of the element.
-		for (std::string refName : *s->getNewInterfaceRefs()) {
-			s->GetInterfacePointers()->insert(std::pair<std::string, InterfaceItem*>(refName, nullptr));
+		for (std::string refName : *scr.second->getNewInterfaceRefs()) {
+			scr.second->GetInterfacePointers()->insert(std::pair<std::string, InterfaceItem*>(refName, nullptr));
 		}
 
 
 		std::map<std::string, InterfaceItem*> maps;
-		for each (std::pair<std::string, InterfaceItem*> refNPointer in *s->GetInterfacePointers()) { //Loops through each reference to a UI label.
+		for each (std::pair<std::string, InterfaceItem*> refNPointer in *scr.second->GetInterfacePointers()) { //Loops through each reference to a UI label.
 			maps.insert(refNPointer);
 		}
 		//Adds any of the UI references from the script into a map that keeps track of all references for all scripts.
-		scriptInterfacePointers.insert(std::pair<ComponentScript*, std::map<std::string, InterfaceItem*>>( s,maps));
+		scriptInterfacePointers.insert(std::pair<ComponentScript*, std::map<std::string, InterfaceItem*>>(scr.second,maps));
 
 	}
 }
@@ -114,8 +111,8 @@ void EngineInterface::OnUpdate(float deltaTime, ClientHandler &client, PhysicsEn
 		
 	}
 
-	for each (ComponentScript *cs in physics.scripts) {
-		for each (std::string s in cs->getDebugText()) {
+	for (std::pair<std::string, ComponentScript*> cs : physics.scripts) {
+		for each (std::string s in cs.second->getDebugText()) {
 			debug_messages.insert(std::pair<std::string, float>(s, 0.0f));
 		}
 	}
@@ -123,7 +120,7 @@ void EngineInterface::OnUpdate(float deltaTime, ClientHandler &client, PhysicsEn
 
 
 	//Updating buttons.
-	glm::vec2 mousePosition = { (ImGui::GetMousePos().x - xDisplacement) / uiWidth, (ImGui::GetMousePos().y - yDisplacement) / uiHeight };
+	glm::vec2 mousePosition = { (ImGui::GetMousePos().x - xDisplacement) / uiWidth, (ImGui::GetMousePos().y - UIEy) / uiHeight };
 	int index = 0;
 	for (UIButton button : UIE.buttons) {
 		if (ImGui::IsMouseClicked(0)) {
@@ -266,8 +263,8 @@ bool EngineInterface::loadInterface(std::string path, ClientHandler & client, Ph
 						//Loops through each script paired to interface.
 						std::string scriptName = BinaryFiles::getString(input);
 						//Fetch script pointer.
-						for (ComponentScript* script : physics.scripts) {
-							if (script->GetName() == scriptName) {
+						for (std::pair<std::string,ComponentScript*> script : physics.scripts) {
+							if (script.second->GetName() == scriptName) {
 								//Checks if the correct script is found.
 								int pairCount = BinaryFiles::getInt(input);
 								if (pairCount > 0) {
@@ -279,7 +276,7 @@ bool EngineInterface::loadInterface(std::string path, ClientHandler & client, Ph
 										//Fetch actual pointer.
 										for (InterfaceItem* item : UIE.Interface_Items) {
 											if (item->GetID() == referenceID) {
-												scriptInterfacePointers.at(script).at(referenceName) = item;
+												scriptInterfacePointers.at(script.second).at(referenceName) = item;
 												break;
 											}
 										}
@@ -655,10 +652,36 @@ void EngineInterface::findSelection() {
 	for (InterfaceItem* item : UIE.Interface_Items) {
 		//Checks if mouse intersects the items bounding area.
 		try {
-			if (item->InBoundingBox(mouseRelative)) {
-				item->SetSelected(true);
-				selectedTypes[item->GetType()] = true;
+			if (item->GetType() == s_Label) {
+				glm::vec2 topLeft = item->GetVertices()[0];
+				glm::vec2 lowRight = topLeft;
+
+				topLeft.x -= 5 / (UIEzoom* uiWidth);
+				topLeft.y -= 5 / (UIEzoom* uiWidth);
+
+
+				UILabel* lbl = dynamic_cast<UILabel*>(item);
+				ImVec2 txtSize = ImGui::CalcTextSize(lbl->text.c_str());
+				float newWidth = txtSize.x * (lbl->fontSize / ImGui::GetFontSize()) + 5;
+				newWidth /= (UIEzoom * uiWidth);
+				lowRight.x += newWidth;
+
+				lowRight.y += (txtSize.y + 5) / (UIEzoom * uiHeight);
+
+
+				if (pointInRect(mouseRelative, topLeft, lowRight)) {
+					item->SetSelected(true);
+					selectedTypes[item->GetType()] = true;
+				}
 			}
+			else {
+				if (item->InBoundingBox(mouseRelative)) {
+					item->SetSelected(true);
+					selectedTypes[item->GetType()] = true;
+				}
+			}
+
+
 		}
 		catch (std::exception ex) {
 			std::cout << "An error occured in selecting an item. Type ID:" << item->GetType() << std::endl;
@@ -939,28 +962,14 @@ void EngineInterface::playStopGame(ClientHandler &client, PhysicsEngine & physic
 }
 
 
-
 void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &script) {
 	ImGui_ImplGlfwGL3_NewFrame();
 	//Colour of the interface.
 	NormalDesign();
 
 
+	//Determining bounds for the engine.
 	UIEy = 0;
-
-
-	//Entering the engine game.
-	if (ImGui::IsMouseClicked(0)) {
-		int mouse_x = ImGui::GetMousePos().x;
-		int mouse_y = ImGui::GetMousePos().y;
-		if (mouse_x > xDisplacement && mouse_x < width && mouse_y > 100 && mouse_y < height - yDisplacement) {
-			if (!client.InEditor) {
-				client.InEditor = true;
-			}
-		}
-	}
-
-
 	if (client.engineView != PRODUCT && client.engineView != Game) {
 		Menu(client, physics, res, script);
 	}
@@ -983,6 +992,31 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 	} else if (client.engineView == Game | client.engineView == Editor) { //inGame
 		playStopGame(client, physics, res, script);
 	}
+
+
+
+
+
+
+
+
+
+	//Entering the engine game.
+	if (ImGui::IsMouseClicked(0)) {
+		int mouse_x = ImGui::GetMousePos().x;
+		int mouse_y = ImGui::GetMousePos().y;
+		if (mouse_x > xDisplacement && mouse_x < width && mouse_y > UIEy && mouse_y < uiHeight + UIEy) {
+			if (!client.InEditor) {
+				client.InEditor = true;
+				client.lastX = mouse_x;
+				client.lastY = mouse_y;
+			}
+		}
+	}
+
+
+
+
 
 	if (client.showUI && (client.engineView == Game | client.engineView == UIEditor | client.engineView == Editor)) {
 		userInterface(client, physics, res, script);
@@ -1243,25 +1277,25 @@ void EngineInterface::displayNewComponent(ClientHandler &client, PhysicsEngine &
 		}
 		ImGui::InputText("Name", component_name, 255);
 		if (ImGui::Button("New")) {
-			for each (ComponentScript* script in physics.scripts) {
-				if (script->GetName() == component_name) {
+			for (std::pair<std::string,ComponentScript*> script : physics.scripts) {
+				if (script.second->GetName() == component_name) {
 					std::string name = component_name;
 					name.append("(1)");
 					strcpy_s(component_name, name.c_str());
 				}
 			}
 			scripts.NewScript(component_name);
-			client.world.objects[selected].addScript(physics.scripts.size());
+			client.world.objects[selected].addScript(component_name);
 			showReloadScreen = true;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Delete")) {
 			unsigned int id = 0;
-			for each (ComponentScript* script in physics.scripts) {
-				if (script->GetName() == component_name) {
+			for (std::pair<std::string, ComponentScript*> script : physics.scripts) {
+				if (script.second->GetName() == component_name) {
 					unsigned int index = 0;
 					for each (Object obj in client.world.objects) {
-						obj.deleteScript(id);
+						obj.deleteScript(script.first);
 						client.world.setObject(index, obj);
 						index++;
 					}
@@ -1271,22 +1305,21 @@ void EngineInterface::displayNewComponent(ClientHandler &client, PhysicsEngine &
 				id++;
 			}
 		}
-		unsigned int id = 0;
-		for each (ComponentScript* script in physics.scripts) {
+
+		for (std::pair<std::string, ComponentScript*> script : physics.scripts) {
 			bool has = false;
-			for each (unsigned int x in client.world.objects[selected].componentScriptIDs) {
-				if (x == id) {
+			for (std::string id : client.world.objects[selected].componentScriptIDs) {
+				if (id == script.first) {
 					has = true;
 				}
 			}
-			if (ImGui::Selectable(script->GetName().c_str(), has, ImGuiSelectableFlags_AllowDoubleClick)) {
+			if (ImGui::Selectable(script.second->GetName().c_str(), has, ImGuiSelectableFlags_AllowDoubleClick)) {
 				if (ImGui::IsMouseDoubleClicked(0)) {
 					if (has == false) {
-						client.world.objects[selected].addScript(id);
+						client.world.objects[selected].addScript(script.second->GetName());
 					}
 				}
 			}
-			id++;
 		}
 
 	}
@@ -1835,7 +1868,8 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 										disTxt = "##meshName" + std::to_string(index);
 										char meshName[255];
 										strcpy_s(meshName, sizeof(meshName), mesh.name.c_str());
-										ImGui::InputText(disTxt.c_str(),meshName, sizeof(meshName));
+										//Input string for new file path.
+										ImGui::InputText(disTxt.c_str(), meshName, sizeof(meshName));
 										std::string result = meshName;
 										if (result.length() > 0) {
 											mesh.name = result;
@@ -1938,7 +1972,7 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 				ImGui::TreePop();
 			}
 
-			for each (unsigned int scriptID in obj.componentScriptIDs) {
+			for (std::string scriptID : obj.componentScriptIDs) {
 				if (ImGui::TreeNode(physics.scripts[scriptID]->GetName().c_str())) {
 					if (ImGui::Button("Delete##DelScript")) {
 						obj.deleteScript(scriptID);

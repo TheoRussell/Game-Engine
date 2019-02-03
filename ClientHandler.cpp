@@ -243,19 +243,6 @@ void ClientHandler::update(GLFWwindow *window)
 							keyDelay_g = 0;
 						}
 					}
-					else if (keyID == ic.key_viewCursor && InEditor) {
-						//if (keyDelay_p >= 10) {
-						//	viewingCursor = !viewingCursor;
-						//	keyDelay_p = 0;
-						//	glfwSetCursorPos(window, 1920 / 2, 1080 / 2);
-						//	if (viewingCursor) {
-						//		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL); //Shows cursor, records position.
-						//	}
-						//	else {
-						//		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED); //Hides cursor, records position.
-						//	}
-						//}
-					}
 					else if (keyID == 77 && InEditor) { //M
 						if (keyDelay_m >= 10) {
 							if (editMode == MOVE) {

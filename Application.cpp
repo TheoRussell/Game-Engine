@@ -20,13 +20,7 @@
 //<@GENERATED CODE@SCRIPT IMPORT@>//
 #include "Components\Scripts\FirstScript.h"
 #include "Components\Scripts\CollisionScript.h"
-#include "Components\Scripts\MoveLightScript.h"
-#include "Components\Scripts\SpawnObj.h"
 #include "Components\Scripts\PlayerController.h"
-#include "Components\Scripts\GamePlayer.h"
-#include "Components\Scripts\MissilePlayer.h"
-#include "Components\Scripts\Rotator.h"
-#include "Components\Scripts\DebugMsg.h"
 #include "Components\Scripts\Player.h"
 //<\@GENERATED CODE@SCRIPT IMPORT@>//
 
@@ -97,14 +91,14 @@ int main(void)
 	//height = 1080;
 	int count;
 	GLFWmonitor** monitors = glfwGetMonitors(&count);
-	GLFWmonitor* monitor = monitors[2];
+	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 	const GLFWvidmode* video = glfwGetVideoMode(monitor);
 	width = video->width;
 	height = video->height;
 	
 
 
-	glfwSetWindowMonitor(window, monitors[2], 0, 0, width, height, video->refreshRate);
+	glfwSetWindowMonitor(window, monitor, 0, 0, width, height, video->refreshRate);
 	glfwSetWindowSize(window, width, height);
 	glfwSetWindowPos(window, 0, 0);
 
@@ -138,10 +132,9 @@ int main(void)
 	engine_interface.height = height;
 
 
-	audio.newSource("Source1");
-	audio.newSource("Source2");
-	//audio.playSound("Source1","test");
-	audio.playSound("Source2", "car");
+
+	int LoadSound = AudioSource::generate();
+	AudioSource::playAudio(LoadSound, AudioStream::GetBuffer("car"));
 
 
 	if (client.closeProgram) {
@@ -230,25 +223,13 @@ int main(void)
 	
 	//<@GENERATED CODE@SCRIPTS@>//
 	FirstScript firstScript;
-	unsigned int firstScriptID = physics.addScript(&firstScript);
+	physics.addScript(&firstScript);
 	CollisionScript script_CollisionScript;
-	unsigned int script_CollisionScriptID = physics.addScript(&script_CollisionScript);
-	MoveLightScript script_MoveLightScript;
-	unsigned int script_MoveLightScriptID = physics.addScript(&script_MoveLightScript);
-	SpawnObj script_SpawnObj;
-	unsigned int script_SpawnObjID = physics.addScript(&script_SpawnObj);
+	physics.addScript(&script_CollisionScript);
 	PlayerController script_PlayerController;
-	unsigned int script_PlayerControllerID = physics.addScript(&script_PlayerController);
-	GamePlayer script_GamePlayer;
-	unsigned int script_GamePlayerID = physics.addScript(&script_GamePlayer);
-	MissilePlayer script_MissilePlayer;
-	unsigned int script_MissilePlayerID = physics.addScript(&script_MissilePlayer);
-	Rotator script_Rotator;
-	unsigned int script_RotatorID = physics.addScript(&script_Rotator);
-	DebugMsg script_DebugMsg;
-	unsigned int script_DebugMsgID = physics.addScript(&script_DebugMsg);
+	physics.addScript(&script_PlayerController);
 	Player script_Player;
-	unsigned int script_PlayerID = physics.addScript(&script_Player);
+	physics.addScript(&script_Player);
 	//<\@GENERATED CODE@SCRIPTS@>//
 
 	int frames = 0;
@@ -302,7 +283,10 @@ int main(void)
 				InGame = client.InGame;
 				if (InGame) {
 					engine_interface.OnUpdate(physics_update, client, physics, resources);
+
+
 					physics.update(client.world, physics_update, client.project.directory);
+					audio.update(client.world);
 					if (physics.newUI != "") {
 						engine_interface.loadInterface(client.WorkingDir + "interfaces\\" + physics.newUI + ".gui", client, physics);
 						physics.newUI = "";
@@ -335,6 +319,8 @@ int main(void)
 
 				updateLag -= physics_update;
 			}
+
+
 
 
 
@@ -395,14 +381,52 @@ int main(void)
 
 
 			
-			//display selected object
+			//display selected object using arrows and modify transformations.
 			if (client.engineView != PRODUCT && client.engineView != Game) {
 				int selected = client.world.getSelected();
 				if (selected > -1) {
 					resources.renderTransformers(1, client.world.getObject(selected), client.editMode, blueArrowID);
-				}
-			}
 
+					glm::vec3 transform_change = glm::vec3(0.0f);
+					float multiplier = 0.1f;
+					if (glfwGetKey(window, KEY_LALT) == GLFW_PRESS || glfwGetKey(window, KEY_RALT) == GLFW_PRESS) {
+						multiplier = 0.02f;
+					}
+					if (glfwGetKey(window, KEY_UP) == GLFW_PRESS) {
+						transform_change.x += multiplier;
+					}
+					if (glfwGetKey(window, KEY_DOWN) == GLFW_PRESS) {
+						transform_change.x -= multiplier;
+					}
+					if (glfwGetKey(window, KEY_PAGE_UP) == GLFW_PRESS) {
+						transform_change.y += multiplier;
+					}
+					if (glfwGetKey(window, KEY_PAGE_DOWN) == GLFW_PRESS) {
+						transform_change.y -= multiplier;
+					}
+					if (glfwGetKey(window, KEY_LEFT) == GLFW_PRESS) {
+						transform_change.z -= multiplier;
+					}
+					if (glfwGetKey(window, KEY_RIGHT) == GLFW_PRESS) {
+						transform_change.z += multiplier;
+					}
+
+					if (client.editMode == MOVE) {
+						client.world.objects[selected].pos += transform_change;
+					}
+					else if (client.editMode == SCALE) {
+						client.world.objects[selected].sca += transform_change;
+					}
+					else if (client.editMode == ROTATE) {
+						client.world.objects[selected].pitch -= transform_change.x * 10;
+						client.world.objects[selected].yaw += transform_change.y * 10;
+						client.world.objects[selected].roll += transform_change.z * 10;
+					}
+
+				}
+
+
+			}
 		}
 
 

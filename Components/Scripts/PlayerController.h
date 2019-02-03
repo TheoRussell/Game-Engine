@@ -13,6 +13,7 @@ public:
 	int source = 0;
 	double timer = 0.0;
 	bool c_down = false;
+	int interface_view = 0;
 private:
 	
 	

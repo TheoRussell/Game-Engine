@@ -16,7 +16,7 @@ public:
 	void update(Scene & scene, std::string PROJpath);
 	void update(Scene & scene, float deltaTime, std::string PROJpath);
 	void load(std::string name, Scene & scene);
-	unsigned int addScript(ComponentScript * script);
+	std::string addScript(ComponentScript * script);
 	Collision RayCast(Scene & scene, Object obj, float distance, float increments, glm::vec3 origin, glm::vec3 direction);
 	Collision RayCast(Scene & scene, Object obj);
 	Collision checkLineCollision(LineCollider & line, BoxCollider & box);
@@ -25,7 +25,9 @@ public:
 	glm::vec3 getBiggestXZ(std::vector<glm::vec3>& corners);
 	glm::vec3 getLowestXZ(std::vector<glm::vec3>& corners);
 	Collision checkBoxCollision(BoxCollider & box1, BoxCollider & box2, float roll, float pitch, float yaw);
-	std::vector<ComponentScript*> scripts;
+
+
+	std::map<std::string, ComponentScript*> scripts;
 
 	GLFWwindow * window;
 	bool exitGame = false;

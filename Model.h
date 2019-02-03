@@ -22,7 +22,7 @@ public:
 	void getMaterials(std::string &path, std::vector<Material> &materials);
 
 
-	void loadModel(std::string path, std::string mat_path);
+	bool loadModel(std::string path, std::string mat_path);
 	~Model();
 	std::string getName();
 	std::string getPathName();

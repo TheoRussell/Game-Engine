@@ -12,6 +12,7 @@ Mesh::Mesh(ModelData info)
 {
 	processModelData(info);
 	setupMesh();
+	savedName = name;
 }
 
 

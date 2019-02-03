@@ -91,7 +91,7 @@ void ScriptManager::modifyApplicationCPP(std::string name) {
 			if (line.find("//<\\@GENERATED CODE@SCRIPTS@>//") != std::string::npos) {
 				writeScript = true;
 				outfile << "	" << name << " script_" << name << ";\n";
-				outfile << "	" << "unsigned int script_" << name << "ID = physics.addScript(&script_" << name << ");\n";
+				outfile << "	" << "physics.addScript(&script_" << name << ");\n";
 			}
 			outfile << line << "\n";
 		}

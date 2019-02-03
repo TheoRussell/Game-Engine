@@ -27,16 +27,18 @@ public:
 	Object(unsigned int id);
 	Object(glm::vec3 _pos, glm::vec3 scale, float _pitch, float _yaw, float _roll);
 
-	void GetScriptData(ComponentScript * script, unsigned int id);
-	void PrepareScript(ComponentScript * script, unsigned int id, GLFWwindow * _window);
+	void GetScriptData(ComponentScript * script, std::string id);
+	void PrepareScript(ComponentScript * script, std::string id, GLFWwindow * _window);
 
-	std::vector<std::string> getDebugText(ComponentScript * script, unsigned int scriptID, GLFWwindow * _window);
-	void startScript(ComponentScript * script, unsigned int scriptID, GLFWwindow * _window);
-	void OnStart(ComponentScript * script, unsigned int scriptID, GLFWwindow * _window);
-	void OnUpdate(ComponentScript * script, unsigned int scriptID, GLFWwindow * _window);
-	void OnFixedUpdate(ComponentScript * script, unsigned int scriptID, GLFWwindow * _window, float deltaTime);
-	void OnCollide(Collision c, ComponentScript * script, unsigned int scriptID, GLFWwindow * _window);
-	void OnRaycast(RayHit rc, ComponentScript * script, unsigned int scriptID, GLFWwindow * _window);
+	std::vector<std::string> getDebugText(ComponentScript * script, std::string scriptID, GLFWwindow * _window);
+
+
+	void startScript(ComponentScript * script, std::string scriptID, GLFWwindow * _window);
+	void OnStart(ComponentScript * script, std::string scriptID, GLFWwindow * _window);
+	void OnUpdate(ComponentScript * script, std::string scriptID, GLFWwindow * _window);
+	void OnFixedUpdate(ComponentScript * script, std::string scriptID, GLFWwindow * _window, float deltaTime);
+	void OnCollide(Collision c, ComponentScript * script, std::string scriptID, GLFWwindow * _window);
+	void OnRaycast(RayHit rc, ComponentScript * script, std::string scriptID, GLFWwindow * _window);
 	~Object();
 	unsigned int addCamera();
 	unsigned int addCamera(Camera camera);
@@ -48,8 +50,8 @@ public:
 	void deselect();
 	bool isSelected();
 	Transform getTransformStruct();
-	void addScript(unsigned int ID);
-	void deleteScript(unsigned int ID);
+	void addScript(std::string ID);
+	void deleteScript(std::string ID);
 	float distanceTo(glm::vec3 position);
 	glm::mat4 getTransform();
 	glm::vec3 getFront();
@@ -70,8 +72,8 @@ public:
 	PhysicsBody physicsBody;
 	std::string name = "obj";
 
-	std::vector<unsigned int> componentScriptIDs;
-	std::map<unsigned int, DataStorage> componentScriptData;
+	std::vector<std::string> componentScriptIDs;
+	std::map<std::string, DataStorage> componentScriptData;
 
 	std::vector<glm::vec3> forces;
 	std::vector<glm::vec3> torques;

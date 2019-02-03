@@ -100,14 +100,30 @@ std::string Model::getPathName() {
 
 void Model::regenerateMeshes() {
 	std::vector<std::string> meshFiles;
+
+	std::vector<Mesh> tempMeshStore = meshes;
+	std::vector<Material> tempMaterialStore = materials;
+
+	unsigned int index = 0;
 	for each (Mesh m in meshes) {
 		meshFiles.push_back("src\\models\\" + m.name);
+		tempMeshStore[index].name = tempMeshStore[index].savedName;
+		index++;
 	}
 	meshes.clear();
+
 	for each (std::string path in meshFiles) {
-		loadModel(path, "");
+		if (loadModel(path, "")) {
+			materials.clear();
+		}
+		else {
+			meshes = tempMeshStore;
+			materials = tempMaterialStore;
+			break;
+		}
 	}
-	materials.clear();
+
+
 }
 
 void Model::regenerateMats(std::vector<Material> mats) {
@@ -121,7 +137,7 @@ void Model::regenerateMats(std::vector<Material> mats) {
 }
 
 
-void Model::loadModel(std::string path, std::string mat_path) {
+bool Model::loadModel(std::string path, std::string mat_path) {
 	//Only 1 mesh!
 
 	std::string line;
@@ -132,173 +148,179 @@ void Model::loadModel(std::string path, std::string mat_path) {
 
 	std::fstream obj;
 	obj.open(path);
+	if (obj.good()) {
+		std::string tempClone = path.erase(0, 11);
+		tempClone = tempClone.erase(tempClone.length() - 4, 4);
+		pathName = tempClone;
 
 
-	std::string tempClone = path.erase(0, 11);
-	tempClone = tempClone.erase(tempClone.length() - 4, 4);
-	pathName = tempClone;
+		std::string meshMaterial = "";
+		unsigned int matID = 0;
+
+		std::vector<std::string> matNames;
 
 
-	std::string meshMaterial = "";
-	unsigned int matID = 0;
+		while (std::getline(obj, line)) {
+			std::string currentLine = line;
 
-	std::vector<std::string> matNames;
-
-
-	while (std::getline(obj, line)) {
-		std::string currentLine = line;
-	
-		if (currentLine.find("v ") != std::string::npos) {
-			std::string newLine;
-			newLine = currentLine.replace(0, 2, "") + " ";
-			std::string token;
-			unsigned int pos = 0;
-			unsigned int vectorPos = 0;
-			glm::vec3 vertex(0.0f, 0.0f, 0.0f);
-			while ((pos = newLine.find(" ")) != std::string::npos) {
-				token = newLine.substr(0, pos);
-				newLine.erase(0, pos + 1);
-				if (vectorPos == 0) {
-					vertex.x = (float)atof(token.c_str());
+			if (currentLine.find("v ") != std::string::npos) {
+				std::string newLine;
+				newLine = currentLine.replace(0, 2, "") + " ";
+				std::string token;
+				unsigned int pos = 0;
+				unsigned int vectorPos = 0;
+				glm::vec3 vertex(0.0f, 0.0f, 0.0f);
+				while ((pos = newLine.find(" ")) != std::string::npos) {
+					token = newLine.substr(0, pos);
+					newLine.erase(0, pos + 1);
+					if (vectorPos == 0) {
+						vertex.x = (float)atof(token.c_str());
+					}
+					else if (vectorPos == 1) {
+						vertex.y = (float)atof(token.c_str());
+					}
+					else if (vectorPos == 2) {
+						vertex.z = (float)atof(token.c_str());
+						posStorage.push_back(vertex);
+					}
+					vectorPos++;
 				}
-				else if (vectorPos == 1) {
-					vertex.y = (float)atof(token.c_str());
-				}
-				else if (vectorPos == 2) {
-					vertex.z = (float)atof(token.c_str());
-					posStorage.push_back(vertex);
-				}
-				vectorPos++;
 			}
-		}
-		else if (currentLine.find("vn ") != std::string::npos) {
-			std::string newLine;
-			newLine = currentLine.replace(0, 3, "") + " ";
-			std::string token;
-			unsigned int pos = 0;
-			unsigned int vectorNorm = 0;
-			glm::vec3 normalPos = glm::vec3(0.0f,0.0f,0.0f);
-			while ((pos = newLine.find(" ")) != std::string::npos) {
-				token = newLine.substr(0, pos);
-				newLine.erase(0, pos + 1);
-				if (vectorNorm == 0) {
-					normalPos.x = (float)atof(token.c_str());
+			else if (currentLine.find("vn ") != std::string::npos) {
+				std::string newLine;
+				newLine = currentLine.replace(0, 3, "") + " ";
+				std::string token;
+				unsigned int pos = 0;
+				unsigned int vectorNorm = 0;
+				glm::vec3 normalPos = glm::vec3(0.0f, 0.0f, 0.0f);
+				while ((pos = newLine.find(" ")) != std::string::npos) {
+					token = newLine.substr(0, pos);
+					newLine.erase(0, pos + 1);
+					if (vectorNorm == 0) {
+						normalPos.x = (float)atof(token.c_str());
+					}
+					else if (vectorNorm == 1) {
+						normalPos.y = (float)atof(token.c_str());
+					}
+					else if (vectorNorm == 2) {
+						normalPos.z = (float)atof(token.c_str());
+						normalStorage.push_back(normalPos);
+					}
+					vectorNorm++;
 				}
-				else if (vectorNorm == 1) {
-					normalPos.y = (float)atof(token.c_str());
-				}
-				else if (vectorNorm == 2) {
-					normalPos.z = (float)atof(token.c_str());
-					normalStorage.push_back(normalPos);
-				}
-				vectorNorm++;
 			}
-		}
-		else if (currentLine.find("vt ") != std::string::npos) {
-			std::string newLine;
-			newLine = currentLine.replace(0, 3, "") + " ";
+			else if (currentLine.find("vt ") != std::string::npos) {
+				std::string newLine;
+				newLine = currentLine.replace(0, 3, "") + " ";
 
-			std::string token;
-			unsigned int pos = 0;
-			unsigned int textCoord = 0;
-			glm::vec3 texCoord;
-			while ((pos = newLine.find(" ")) != std::string::npos) {
-				token = newLine.substr(0, pos);
-				newLine.erase(0, pos + 1);
-				float ref = (float)atof(token.c_str());
-				if (textCoord == 0) {
-					texCoord.x = ref;
+				std::string token;
+				unsigned int pos = 0;
+				unsigned int textCoord = 0;
+				glm::vec3 texCoord;
+				while ((pos = newLine.find(" ")) != std::string::npos) {
+					token = newLine.substr(0, pos);
+					newLine.erase(0, pos + 1);
+					float ref = (float)atof(token.c_str());
+					if (textCoord == 0) {
+						texCoord.x = ref;
+					}
+					else if (textCoord == 1) {
+						texCoord.y = ref;
+					}
+					textCoord += 1;
 				}
-				else if (textCoord == 1) {
-					texCoord.y = ref;
-				}
-				textCoord += 1;
+				texCoord.z = (float)matID;
+				textureStorage.push_back(texCoord);
 			}
-			texCoord.z = (float)matID;
-			textureStorage.push_back(texCoord);
-		}
-		else if (currentLine.find("f ") != std::string::npos) {
-			std::string newLine = currentLine.replace(0, 2, "") + " ";
-			std::string token;
-			unsigned int pos = 0;
-			pos = newLine.find(" ");
-			while (pos != std::string::npos) {
-				token = newLine.substr(0, pos) + "/";
-				newLine.erase(0, pos + 1);
+			else if (currentLine.find("f ") != std::string::npos) {
+				std::string newLine = currentLine.replace(0, 2, "") + " ";
+				std::string token;
+				unsigned int pos = 0;
 				pos = newLine.find(" ");
-				unsigned int eboPos = 0;
-				unsigned int type = 0;
-				std::string vertexPoint;
-				glm::vec3 index = glm::vec3(0.0f,0.0f,0.0f);
-				eboPos = token.find("/");
-				while (eboPos != std::string::npos) {
-					std::string token2;
-					token2 = token.substr(0, eboPos);
-					token.erase(0, eboPos + 1);
+				while (pos != std::string::npos) {
+					token = newLine.substr(0, pos) + "/";
+					newLine.erase(0, pos + 1);
+					pos = newLine.find(" ");
+					unsigned int eboPos = 0;
+					unsigned int type = 0;
+					std::string vertexPoint;
+					glm::vec3 index = glm::vec3(0.0f, 0.0f, 0.0f);
 					eboPos = token.find("/");
-					vertexPoint = token2;
+					while (eboPos != std::string::npos) {
+						std::string token2;
+						token2 = token.substr(0, eboPos);
+						token.erase(0, eboPos + 1);
+						eboPos = token.find("/");
+						vertexPoint = token2;
 
-					unsigned int ref = atoi(vertexPoint.c_str()) - 1;
-					if (type == 0) {
-						//Index
-						index.x = (float)ref;
+						unsigned int ref = atoi(vertexPoint.c_str()) - 1;
+						if (type == 0) {
+							//Index
+							index.x = (float)ref;
+						}
+						else if (type == 1) {
+							//Texture
+							if (ref + 1 == 0) { ref = 5000; }
+							index.y = (float)ref;
+						}
+						else if (type == 2) {
+							//Normal
+							index.z = (float)ref;
+							indices.push_back(index);
+						}
+						type++;
 					}
-					else if (type == 1) {
-						//Texture
-						if (ref + 1 == 0) { ref = 5000; }
-						index.y = (float)ref;
-					}
-					else if (type == 2) {
-						//Normal
-						index.z = (float)ref;
-						indices.push_back(index); 
-					}
-					type++;
 				}
 			}
-		} 
-		else if (currentLine.find("mtllib ") != std::string::npos) {
-			std::string materialLine = currentLine.replace(0, 7, "");
-			meshMaterial = materialLine;
+			else if (currentLine.find("mtllib ") != std::string::npos) {
+				std::string materialLine = currentLine.replace(0, 7, "");
+				meshMaterial = materialLine;
+			}
+			else if (currentLine.find("usemtl ") != std::string::npos) {
+				std::string materialLine = currentLine.replace(0, 7, "");
+				bool previous = false;
+				for each (std::string s in matNames) {
+					if (s == materialLine) {
+						previous = true;
+					}
+				}
+				if (!previous) {
+					matNames.push_back(materialLine);
+				}
+				matID++;
+			}
+			else {
+				//Other data from the obj file.
+			}
 		}
-		else if (currentLine.find("usemtl ") != std::string::npos) {
-			std::string materialLine = currentLine.replace(0, 7, "");
-			bool previous = false;
-			for each (std::string s in matNames) {
-				if (s == materialLine) {
-					previous = true;
-				}
-			}
-			if (!previous) {
-				matNames.push_back(materialLine);
-			}
-			matID++;
+
+
+		if (mat_path == "") {
+			getMaterials("src\\models\\" + meshMaterial, materials);
 		}
 		else {
-			//Other data from the obj file.
+			getMaterials("src\\models\\" + mat_path, materials);
 		}
+
+
+		ModelData model;
+		model.indices = indices;
+		model.normals = normalStorage;
+		model.positions = posStorage;
+		model.textureCoords = textureStorage;
+		model.materials = materials;
+		Mesh mesh(model);
+		mesh.name = path;
+		mesh.savedName = path;
+		meshes.push_back(mesh);
+
+		obj.close();
+		return true;
 	}
-
-
-	if (mat_path == "") {
-		getMaterials("src\\models\\" + meshMaterial, materials);
-	}
-	else {
-		getMaterials("src\\models\\" + mat_path, materials);
-	}
-
-
-	ModelData model;
-	model.indices = indices;
-	model.normals = normalStorage;
-	model.positions = posStorage;
-	model.textureCoords = textureStorage;
-	model.materials = materials;
-	Mesh mesh(model);
-	mesh.name = path;
-	meshes.push_back(mesh);
 
 	obj.close();
+	return false;
+	
 }
 
 glm::vec3 Model::getVec3FromString(std::string &path) {

@@ -13,7 +13,7 @@ PlayerController::~PlayerController() {
 }
 
 void PlayerController::OnStart() {
-	AudioStream::AddBuffer("temp", AudioFile::generate("src\\sounds\\carMoving.wav"));
+	AudioStream::AddBuffer("button", AudioFile::generate("src\\sounds\\button.wav"));
 	source = AudioSource::generate();
 }
 
@@ -41,24 +41,36 @@ void PlayerController::OnFixedUpdate(float deltaTime) {
 	}
 
 
-	UIButton * bar = dynamic_cast<UIButton*>(GetInterfacePointers()->at("Levels"));
-	if (bar != nullptr) {
-		if (bar->Clicked) {
-			bar->Clicked = false;
-			ChangeUI("Levels");
+	if (interface_view == 0) {
+		UIButton * bar = dynamic_cast<UIButton*>(GetInterfacePointers()->at("Levels"));
+		if (bar != nullptr) {
+			if (bar->Clicked) {
+				bar->Clicked = false;
+				ChangeUI("Levels");
 
-			int audioSource = AudioSource::generate();
-			AudioSource::playAudio(audioSource, AudioStream::GetBuffer("temp"));
+				int audioSource = AudioSource::generate();
+				AudioSource::playAudio(audioSource, AudioStream::GetBuffer("button"));
+
+				interface_view = 1;
+			}
 		}
 	}
 
-	UIButton * bar2 = dynamic_cast<UIButton*>(GetInterfacePointers()->at("MainMenu"));
-	if (bar2 != nullptr) {
-		if (bar2->Clicked) {
-			bar2->Clicked = false;
-			ChangeUI("MainMenu");
+	if (interface_view == 1) {
+		UIButton * bar2 = dynamic_cast<UIButton*>(GetInterfacePointers()->at("MainMenu"));
+		if (bar2 != nullptr) {
+			if (bar2->Clicked) {
+				bar2->Clicked = false;
+				ChangeUI("MainMenu");
+
+				int audioSource = AudioSource::generate();
+				AudioSource::playAudio(audioSource, AudioStream::GetBuffer("button"));
+
+				interface_view = 0;
+			}
 		}
 	}
+
 	
 
 	//DebugPrint(std::to_string(GetPitch()) + "," + std::to_string(GetRoll()) + "," + std::to_string(GetYaw()));

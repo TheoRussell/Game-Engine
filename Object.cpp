@@ -35,7 +35,7 @@ Object::Object(glm::vec3 p) {
 	yaw = 0;
 }
 
-Object::Object(unsigned int id) {
+Object::Object(unsigned int ID) {
 	pos = glm::vec3(0.0f, 0.0f, 0.0f);
 	sca = glm::vec3(1.0f, 1.0f, 1.0f);
 	pitch = 0;
@@ -53,7 +53,7 @@ Object::Object(glm::vec3 _pos, glm::vec3 scale, float _pitch, float _yaw, float 
 
 
 //Used to get object data from a script.
-void Object::GetScriptData(ComponentScript* script, unsigned int id) {
+void Object::GetScriptData(ComponentScript* script, std::string id) {
 	//Object data.
 	components = script->getComponents();
 	pos = script->GetPosition();
@@ -96,7 +96,7 @@ void Object::GetScriptData(ComponentScript* script, unsigned int id) {
 	deleteSelf = script->isDeleted();
 }
 
-void Object::PrepareScript(ComponentScript* script, unsigned int id, GLFWwindow *_window) {
+void Object::PrepareScript(ComponentScript* script, std::string id, GLFWwindow *_window) {
 	script->update(pos, sca, pitch, roll, yaw, components); //Run script.
 	script->SetMass(physicsBody.mass);
 	script->SetLinearVelocity(physicsBody.linear_velocity);
@@ -105,7 +105,7 @@ void Object::PrepareScript(ComponentScript* script, unsigned int id, GLFWwindow 
 }
 
 //Initialises the script with all it's variables.
-void Object::startScript(ComponentScript* script, unsigned int scriptID, GLFWwindow *_window) {
+void Object::startScript(ComponentScript* script, std::string scriptID, GLFWwindow *_window) {
 	script->update(pos, sca, pitch, roll, yaw, components); //Run script.
 	script->SetMass(physicsBody.mass);
 	script->SetLinearVelocity(physicsBody.linear_velocity);
@@ -116,7 +116,7 @@ void Object::startScript(ComponentScript* script, unsigned int scriptID, GLFWwin
 	componentScriptData[scriptID].enabled = true;
 }
 
-void Object::OnStart(ComponentScript* script, unsigned int scriptID, GLFWwindow *_window) {
+void Object::OnStart(ComponentScript* script, std::string scriptID, GLFWwindow *_window) {
 	script->update(pos, sca, pitch, roll, yaw, components); //Run script.
 	script->SetMass(physicsBody.mass);
 	script->SetLinearVelocity(physicsBody.linear_velocity);
@@ -132,14 +132,14 @@ void Object::OnStart(ComponentScript* script, unsigned int scriptID, GLFWwindow 
 	GetScriptData(script, scriptID);
 }
 
-void Object::OnUpdate(ComponentScript* script, unsigned int scriptID, GLFWwindow *_window) {
+void Object::OnUpdate(ComponentScript* script, std::string scriptID, GLFWwindow *_window) {
 	PrepareScript(script, scriptID, _window);
 	script->OnUpdate();
 
 	GetScriptData(script, scriptID);
 }
 
-void Object::OnFixedUpdate(ComponentScript* script, unsigned int scriptID, GLFWwindow *_window, float deltaTime) {
+void Object::OnFixedUpdate(ComponentScript* script, std::string scriptID, GLFWwindow *_window, float deltaTime) {
 	//Updating script information.
 	PrepareScript(script, scriptID, _window);
 	//Running script.
@@ -147,14 +147,14 @@ void Object::OnFixedUpdate(ComponentScript* script, unsigned int scriptID, GLFWw
 	GetScriptData(script, scriptID);
 }
 
-void Object::OnCollide(Collision c, ComponentScript* script, unsigned int scriptID, GLFWwindow *_window) {
+void Object::OnCollide(Collision c, ComponentScript* script, std::string scriptID, GLFWwindow *_window) {
 	PrepareScript(script, scriptID, _window);
 	script->OnCollide(c); //Run script
 						   //Update obj data.
 	GetScriptData(script, scriptID);
 }
 
-void Object::OnRaycast(RayHit rc, ComponentScript* script, unsigned int scriptID, GLFWwindow *_window) {
+void Object::OnRaycast(RayHit rc, ComponentScript* script, std::string scriptID, GLFWwindow *_window) {
 	PrepareScript(script, scriptID, _window);
 	script->OnRaycast(rc); //Run script
 						   //Update obj data.
@@ -213,15 +213,15 @@ Transform Object::getTransformStruct() {
 	return t;
 }
 
-void Object::addScript(unsigned int ID) {
+void Object::addScript(std::string ID) {
 	componentScriptIDs.push_back(ID);
 	DataStorage ds;
-	componentScriptData.insert(std::pair<unsigned int, DataStorage>(ID, ds));
+	componentScriptData.insert(std::pair<std::string, DataStorage>(ID, ds));
 }
 
-void Object::deleteScript(unsigned int ID) {
+void Object::deleteScript(std::string ID) {
 	unsigned int index = 0;
-	for each (unsigned int cs in componentScriptIDs) {
+	for (std::string cs : componentScriptIDs) {
 		if (cs == ID) {
 			componentScriptData.erase(ID);
 			componentScriptIDs.erase(componentScriptIDs.begin() + index);

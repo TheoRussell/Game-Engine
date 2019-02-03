@@ -18,10 +18,10 @@ PhysicsEngine::~PhysicsEngine()
 
 
 void PhysicsEngine::updateKeys() {
-	for each (ComponentScript* cs in scripts) {
+	for (std::pair<std::string, ComponentScript*> cs : scripts) {
 		try {
-			cs->setScriptWindow(window);
-			cs->updateKeys();
+			cs.second->setScriptWindow(window);
+			cs.second->updateKeys();
 		}
 		catch (std::exception ex) {
 			std::cout << ex.what() << std::endl;
@@ -34,17 +34,17 @@ void PhysicsEngine::start(Scene &scene, GLFWwindow * _window) {
 
 	unsigned int id = 0;
 	for each (Object obj in scene.getObjects()) {
-			for each (unsigned int x in obj.componentScriptIDs) {
-				try {
-					obj.startScript(scripts[x], x, window);
-				}
-				catch (std::exception ex) {
-					std::cout << "Could not bind script" << std::endl;
-				}
-
+		for (std::string script : obj.componentScriptIDs) {
+			try {
+				obj.startScript(scripts.at(script), script, window);
 			}
-			scene.setObject(id, obj);
-			id++;
+			catch (std::exception ex) {
+				std::cout << "Could not bind script" << std::endl;
+			}
+
+		}
+		scene.setObject(id, obj);
+		id++;
 		
 	}
 }
@@ -56,9 +56,9 @@ void PhysicsEngine::OnStart(Scene &scene, GLFWwindow * _window) {
 
 	unsigned int id = 0;
 	for each (Object obj in scene.getObjects()) {
-			for each (unsigned int x in obj.componentScriptIDs) {
+		for (std::string script : obj.componentScriptIDs) {
 				try {
-					obj.OnStart(scripts[x], x, window);
+					obj.OnStart(scripts.at(script), script, window);
 				}
 				catch (std::exception ex) {
 					std::cout << "Could not start script" << std::endl;
@@ -97,16 +97,16 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 			//RESULTANT_FORCE += imp.force;
 
 			//Update scripts.
-			for each (unsigned int x in obj.componentScriptIDs) {
-				if (x < scripts.size()) {
-					if (obj.componentScriptData[x].enabled) {
+			for (std::string script : obj.componentScriptIDs) {
+				if (scripts.find(script) != scripts.end()) {
+					if (obj.componentScriptData.at(script).enabled) {
 						try {
 							obj.raycasts.clear();
 							if (deltaTime == -1) {
-								obj.OnUpdate(scripts[x], x, window);
+								obj.OnUpdate(scripts.at(script), script, window);
 							}
 							else {
-								obj.OnFixedUpdate(scripts[x], x, window, deltaTime);
+								obj.OnFixedUpdate(scripts.at(script), script, window, deltaTime);
 							}
 
 							
@@ -120,7 +120,7 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 								Collision c = RayCast(scene, obj, rc.length, rc.increments, rc.origin, rc.direction);
 								if (c.collided) {
 									rc.collision = c;
-									obj.OnRaycast(rc, scripts[x], x, window);
+									obj.OnRaycast(rc, scripts[script], script, window);
 									break;
 								}
 							}
@@ -132,14 +132,14 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 
 
 						if (obj.newScene != "") {
-							scripts[x]->resetNewScene();
+							scripts[script]->resetNewScene();
 							ChangeScene(scene, PROJpath + "Scenes\\" + obj.newScene + ".SCENE");
 							obj.newScene = "";
 							return;
 						}
 						if (obj.newUI != "") {
 							newUI = obj.newUI;
-							scripts[x]->resetNewUI();
+							scripts[script]->resetNewUI();
 						}
 					}
 
@@ -211,10 +211,10 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 					//Running collision scripts.
 					for each (Collision c in collisions) {
 						Object* hit_obj = &scene.objects[c.objID];
-						for (unsigned int scriptID : hit_obj->componentScriptIDs) {
-							if (scriptID < scripts.size()) {
+						for (std::string scriptID: hit_obj->componentScriptIDs) {
+							if (scripts.find(scriptID) != scripts.end()) {
 								try {
-									hit_obj->OnCollide(c, scripts[scriptID], scriptID, window);
+									hit_obj->OnCollide(c, scripts.at(scriptID), scriptID, window);
 								}
 								catch (std::exception ex) {
 									std::cout << "Could not run collision script." << std::endl;
@@ -223,11 +223,11 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 						}
 
 						//Affect object after all collisions are detected.
-						for each (unsigned int x in obj.componentScriptIDs) {
-							if (x < scripts.size()) {
-								if (obj.componentScriptData[x].enabled) {
+						for (std::string scriptID : obj.componentScriptIDs) {
+							if (scripts.find(scriptID) != scripts.end()) {
+								if (obj.componentScriptData.at(scriptID).enabled) {
 									try {
-										obj.OnCollide(c, scripts[x], x, window);
+										obj.OnCollide(c, scripts.at(scriptID), scriptID, window);
 									}
 									catch (std::exception ex) {
 										std::cout << "could not collide script" << std::endl;
@@ -238,7 +238,7 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 											Collision c = RayCast(scene, obj, rc.length, rc.increments, rc.origin, rc.direction);
 											if (c.collided) {
 												rc.collision = c;
-												obj.OnRaycast(rc, scripts[x], x, window);
+												obj.OnRaycast(rc, scripts.at(scriptID), scriptID, window);
 												break;
 											}
 										}
@@ -249,7 +249,7 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 									}
 
 									if (obj.newScene != "") {
-										scripts[x]->resetNewScene();
+										scripts.at(scriptID)->resetNewScene();
 										obj.newScene = "";
 										ChangeScene(scene, PROJpath + "\\Scenes\\" + obj.newScene + ".SCENE");
 										return;
@@ -257,7 +257,7 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 
 									if (obj.newUI != "") {
 										newUI = obj.newUI;
-										scripts[x]->resetNewUI();
+										scripts.at(scriptID)->resetNewUI();
 									}
 								}
 							}
@@ -322,9 +322,9 @@ void PhysicsEngine::load(std::string name, Scene &scene) {
 	scene.loadBinary(name);
 }
 
-unsigned int PhysicsEngine::addScript(ComponentScript* script) {
-	scripts.push_back(script);
-	return scripts.size() - 1;
+std::string PhysicsEngine::addScript(ComponentScript* script) {
+	scripts.insert(std::pair<std::string, ComponentScript*>(script->GetName(),script));
+	return script->GetName();
 }
 
 Collision PhysicsEngine::RayCast(Scene &scene, Object obj) {

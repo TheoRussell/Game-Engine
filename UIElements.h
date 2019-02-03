@@ -39,11 +39,24 @@ public:
 	}
 	//Renders float inputs on current interface tab.
 	void DisplayColours() {
-		std::string buttonTxt = "Fill##FillColour" + id;
-		ImGui::ColorPicker4(buttonTxt.c_str(), &FillColour[0]);
 
-		buttonTxt = "Outline##LineColour" + id;
-		ImGui::ColorPicker4(buttonTxt.c_str(), &LineColour[0]);
+		std::string buttonTxt = "Filled##Filled" + id;
+		ImGui::Checkbox(buttonTxt.c_str(), &filled);
+
+		if (filled) {
+			buttonTxt = "Fill##FillColour" + id;
+			ImGui::ColorPicker4(buttonTxt.c_str(), &FillColour[0]);
+		}
+
+
+		buttonTxt = "Outlined##Outlined" + id;
+		ImGui::Checkbox(buttonTxt.c_str(), &outlined);
+		if (outlined) {
+			buttonTxt = "Outline##LineColour" + id;
+			ImGui::ColorPicker4(buttonTxt.c_str(), &LineColour[0]);
+		}
+
+
 	}
 	//Iterates through each of the vertices that represent the object and translate them.
 	virtual void Move(glm::vec2 direction, int uiWidth, int uiHeight, float UIEx, float UIEy, float UIEzoom, float xDisplacement) {
@@ -608,15 +621,6 @@ public:
 		type = s_Label;
 	}
 
-	bool InBoundingBox(glm::vec2 mouse) override {
-		ImVec2 txtSize = ImGui::CalcTextSize(text.c_str());
-
-		if (pointInRect(mouse, { vertices[0].x - 5, vertices[0].y - 5 }, { vertices[0].x + (txtSize.x*(fontSize / ImGui::GetFontSize())) + 5, vertices[0].y + fontSize + 5 })) {
-			return true;
-		}
-		return false;
-	}
-
 	bool Load(std::ifstream& input) override {
 		try {
 			vertices.clear();
@@ -672,10 +676,10 @@ public:
 		glm::vec2 point = pointToScreen(vertices[0], uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 		ImVec2 txtSize = ImGui::CalcTextSize(text.c_str());
 		if (filled) {
-			drawList->AddRectFilled({ point.x - 5, point.y - 5 }, { point.x + (txtSize.x*(fontSize / font->FontSize)) + 5, point.y + fontSize + 5 }, ImColor(FillColour.x, FillColour.y, FillColour.z, FillColour.w), 1.0f);
+			drawList->AddRectFilled({ point.x - 5, point.y - 5 }, { point.x + (txtSize.x*(fontSize / font->FontSize)) + 5, point.y + txtSize.y + 5 }, ImColor(FillColour.x, FillColour.y, FillColour.z, FillColour.w), 1.0f);
 		}
 		if (outlined) {
-			drawList->AddRect({ point.x - 5, point.y - 5 }, {  point.x + (txtSize.x*(fontSize / font->FontSize)) + 5, point.y + fontSize + 5 }, ImColor(LineColour.x, LineColour.y, LineColour.x, LineColour.w), 1.0f);
+			drawList->AddRect({ point.x - 5, point.y - 5 }, {  point.x + (txtSize.x*(fontSize / font->FontSize)) + 5, point.y + txtSize.y + 5 }, ImColor(LineColour.x, LineColour.y, LineColour.x, LineColour.w), 1.0f);
 		}
 
 		drawList->AddText(
