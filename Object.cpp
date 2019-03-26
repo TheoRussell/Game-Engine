@@ -58,9 +58,10 @@ void Object::GetScriptData(ComponentScript* script, std::string id) {
 	components = script->getComponents();
 	pos = script->GetPosition();
 	sca = script->GetScale();
-	pitch = script->GetPitch();
-	roll = script->GetRoll();
-	yaw = script->GetYaw();
+	pitch =std::fmod(script->GetPitch(), 360.0f);
+	roll =std::fmod(script->GetRoll(), 360.0f);
+	yaw =std::fmod(script->GetYaw(), 360.0f);
+
 	exitGame = script->getExit();
 	physicsBody.mass = script->GetMass();
 
@@ -98,8 +99,10 @@ void Object::GetScriptData(ComponentScript* script, std::string id) {
 
 void Object::PrepareScript(ComponentScript* script, std::string id, GLFWwindow *_window) {
 	script->update(pos, sca, pitch, roll, yaw, components); //Run script.
+	script->setScriptWindow(_window);
 	script->SetMass(physicsBody.mass);
 	script->SetLinearVelocity(physicsBody.linear_velocity);
+	script->SetAngularVelocity(physicsBody.angular_velocity);
 	script->setDelete(false);
 	script->setScriptData(componentScriptData[id], _window);
 }
@@ -107,9 +110,18 @@ void Object::PrepareScript(ComponentScript* script, std::string id, GLFWwindow *
 //Initialises the script with all it's variables.
 void Object::startScript(ComponentScript* script, std::string scriptID, GLFWwindow *_window) {
 	script->update(pos, sca, pitch, roll, yaw, components); //Run script.
+	script->setScriptWindow(_window);
 	script->SetMass(physicsBody.mass);
 	script->SetLinearVelocity(physicsBody.linear_velocity);
 	script->setDelete(false);
+
+	componentScriptData[scriptID].variable_bool.clear();
+	componentScriptData[scriptID].variable_int.clear();
+	componentScriptData[scriptID].variable_float.clear();
+	componentScriptData[scriptID].variable_string.clear();
+	componentScriptData[scriptID].variable_uint.clear();
+	script->setScriptData(componentScriptData[scriptID], _window);
+
 	script->OnStart();
 	//Update obj data.
 	GetScriptData(script, scriptID);
@@ -118,18 +130,15 @@ void Object::startScript(ComponentScript* script, std::string scriptID, GLFWwind
 
 void Object::OnStart(ComponentScript* script, std::string scriptID, GLFWwindow *_window) {
 	script->update(pos, sca, pitch, roll, yaw, components); //Run script.
+	script->setScriptWindow(_window);
 	script->SetMass(physicsBody.mass);
 	script->SetLinearVelocity(physicsBody.linear_velocity);
 	script->setDelete(false);
-	componentScriptData[scriptID].variable_bool.clear();
-	componentScriptData[scriptID].variable_int.clear();
-	componentScriptData[scriptID].variable_float.clear();
-	componentScriptData[scriptID].variable_string.clear();
-	componentScriptData[scriptID].variable_uint.clear();
-	script->setScriptData(componentScriptData[scriptID], _window);
+	
 	script->OnStart();
 	
 	GetScriptData(script, scriptID);
+	componentScriptData[scriptID].enabled = true;
 }
 
 void Object::OnUpdate(ComponentScript* script, std::string scriptID, GLFWwindow *_window) {
@@ -251,13 +260,19 @@ glm::mat4 Object::getTransform() {
 	return result;
 }
 
-glm::vec3 Object::getFront() {
+glm::vec3 Object::GetForward() {
 	glm::vec3 result;
 	result.x = cos(glm::radians(pitch)) * cos(glm::radians(yaw));
 	result.y = sin(glm::radians(pitch));
 	result.z = cos(glm::radians(pitch)) * sin(glm::radians(yaw));
 	return glm::normalize(result);
 }
+
+glm::vec3 Object::getRight() {
+	glm::vec3 c_Right = glm::normalize(glm::cross(GetForward(), { 0.0f, 1.0f, 0.0f }));
+	return c_Right;
+}
+
 
 glm::vec3 Object::getPos() {
 	return pos;

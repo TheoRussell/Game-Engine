@@ -70,7 +70,7 @@ public:
 	virtual void Scale(glm::vec2 scale, int uiWidth, int uiHeight, float UIEx, float UIEy, float UIEzoom, float xDisplacement) {
 		unsigned int index = 0;
 		for (glm::vec2 vertex : vertices) {
-			vertices[index] = vertex * scale*10.0f;
+			vertices[index] = vertex * scale;
 			index++;
 		}
 	}
@@ -174,7 +174,7 @@ private:
 protected:
 	bool filled = true;
 	bool outlined = true;
-	bool selected = true;
+	bool selected = false;
 	std::vector<glm::vec2> vertices;
 	glm::vec4 FillColour = glm::vec4(255, 255, 255, 255);
 	glm::vec4 LineColour = glm::vec4(255, 255, 255, 255);
@@ -189,8 +189,8 @@ public:
 
 
 	UIButton() {
-		vertices.push_back({ 0.46875f, 0.46875f }); // Top left
-		vertices.push_back({ 0.53125f, 0.53125f }); // Low right
+		vertices.push_back({ 0.0f, 0.0f }); // Top left
+		vertices.push_back({ 0.05f, 0.05f }); // Low right
 		type = s_Button;
 	}
 
@@ -243,7 +243,7 @@ public:
 		glm::vec2 lowRight = pointToScreen(vertices[1], uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 
 		ImGuiIO & io = ImGui::GetIO();
-		ImDrawList * drawList = ImGui::GetOverlayDrawList();
+		ImDrawList * drawList = ImGui::GetWindowDrawList();
 
 		if (filled) {
 			drawList->AddRectFilled({ topLeft.x, topLeft.y }, { lowRight.x, lowRight.y }, ImGui::ColorConvertFloat4ToU32({ FillColour.x, FillColour.y, FillColour.z, FillColour.w }));
@@ -270,15 +270,15 @@ class UIPBar : public InterfaceItem {
 
 public:
 	int paddingWidth = 1;
-	glm::vec4 empty_fillCol = glm::vec4(64, 64, 64, 128);
-	glm::vec2 barPos = glm::vec2(0.53125f, 0.53125f);
+	glm::vec4 empty_fillCol = glm::vec4(0.5, 0.5, 0.5, 1.0);
+	glm::vec2 barPos = glm::vec2(0.0f, 0.0f);
 	float percent = 0.75f;
 
 	BAR_FILL_DIR barFillDirection = bfd_LEFTRIGHT;
 
 	UIPBar() {
-		vertices.push_back({ 0.46875f, 0.46875f }); // Top left
-		vertices.push_back({ 0.53125f, 0.53125f }); // Low right
+		vertices.push_back({ 0.0f, 0.0f }); // Top left
+		vertices.push_back({ 0.05f, 0.05f }); // Low right
 		type = s_PBar;
 	}
 
@@ -333,7 +333,7 @@ public:
 		glm::vec2 barPosition = pointToScreen(barPos, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 
 		ImGuiIO & io = ImGui::GetIO();
-		ImDrawList * drawList = ImGui::GetOverlayDrawList();
+		ImDrawList * drawList = ImGui::GetWindowDrawList();
 		//Line
 		if (outlined) {
 			drawList->AddRectFilled({ topLeft.x, topLeft.y }, { lowRight.x, lowRight.y }, ImGui::ColorConvertFloat4ToU32({ LineColour.x, LineColour.y, LineColour.z, LineColour.w }));
@@ -453,7 +453,7 @@ public:
 		glm::vec2 endPos = pointToScreen(vertices[1], uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 
 		ImGuiIO & io = ImGui::GetIO();
-		ImDrawList * drawList = ImGui::GetOverlayDrawList();
+		ImDrawList * drawList = ImGui::GetWindowDrawList();
 
 		drawList->AddLine({ startPos.x, startPos.y }, { endPos.x, endPos.y }, IM_COL32(LineColour.x, LineColour.y, LineColour.z, LineColour.w));
 	}
@@ -483,8 +483,8 @@ public:
 
 	UIRectangle() {
 		type = s_Rectangle;
-		vertices.push_back({ 0.46875f, 0.46875f });
-		vertices.push_back({ 0.53125f, 0.53125f });
+		vertices.push_back({ 0.0f, 0.0f });
+		vertices.push_back({ 0.05f, 0.05f });
 	}
 	UIRectangle(std::string _id, glm::vec4 _cornerA, glm::vec4 _cornerB, glm::vec4 _cornerC, glm::vec4 _cornerD, glm::vec4 _topLeft, glm::vec4 _lowRight) {
 		id = _id;
@@ -547,7 +547,7 @@ public:
 		glm::vec2 lowRight = pointToScreen(vertices[1], uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 
 		ImGuiIO & io = ImGui::GetIO();
-		ImDrawList * drawList = ImGui::GetOverlayDrawList();
+		ImDrawList * drawList = ImGui::GetWindowDrawList();
 
 		if (filled && solidFill) {
 			drawList->AddRectFilled({ topLeft.x, topLeft.y }, { lowRight.x, lowRight.y }, ImGui::ColorConvertFloat4ToU32({FillColour.x , FillColour.y, FillColour.z, FillColour.w}));
@@ -615,6 +615,8 @@ public:
 	std::string text = "Label1";
 	float fontSize = 13.0f;
 	glm::vec4 foreColour = glm::vec4(0, 0, 0, 255);
+	int uiH = 0;
+	float screenProportion = 0.0f;
 
 	UILabel() {
 		vertices.push_back({0.0f, 0.0f}); //The point that the label is at.
@@ -627,7 +629,10 @@ public:
 			id = BinaryFiles::getString(input);
 			vertices.push_back(BinaryFiles::getVec2(input));
 			text = BinaryFiles::getString(input);
-			fontSize = BinaryFiles::getFloat(input);
+			screenProportion = BinaryFiles::getFloat(input);
+			std::cout << screenProportion << "," << uiH << std::endl;
+			fontSize = screenProportion * uiH;
+
 			FillColour = BinaryFiles::getVec4(input);
 			foreColour = BinaryFiles::getVec4(input);
 			LineColour = BinaryFiles::getVec4(input);
@@ -642,13 +647,14 @@ public:
 
 
 	bool Save(std::ofstream& file) override {
+
 		try {
 			BINARYWrite bw = BINARY_Label;
 			BinaryFiles::writeBINARYType(file, bw);
 			BinaryFiles::writeString(file, id);
 			BinaryFiles::writeVec2(file, vertices[0]);
 			BinaryFiles::writeString(file, text);
-			BinaryFiles::writeFloat(file, fontSize);
+			BinaryFiles::writeFloat(file, screenProportion);
 			BinaryFiles::writeVec4(file, FillColour);
 			BinaryFiles::writeVec4(file, foreColour);
 			BinaryFiles::writeVec4(file, LineColour);
@@ -668,18 +674,21 @@ public:
 
 
 	void Render(int uiWidth, int uiHeight, float UIEx, float UIEy, float UIEzoom, float xDisplacement) override {
+		screenProportion = fontSize / uiHeight;
+		uiH = uiHeight;
+
 		ImFont *font = ImGui::GetFont();
 
 		ImGuiIO & io = ImGui::GetIO();
-		ImDrawList * drawList = ImGui::GetOverlayDrawList();
+		ImDrawList * drawList = ImGui::GetWindowDrawList();
 
 		glm::vec2 point = pointToScreen(vertices[0], uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 		ImVec2 txtSize = ImGui::CalcTextSize(text.c_str());
 		if (filled) {
-			drawList->AddRectFilled({ point.x - 5, point.y - 5 }, { point.x + (txtSize.x*(fontSize / font->FontSize)) + 5, point.y + txtSize.y + 5 }, ImColor(FillColour.x, FillColour.y, FillColour.z, FillColour.w), 1.0f);
+			drawList->AddRectFilled({ point.x - 5, point.y - 5 }, { point.x + (txtSize.x*(fontSize / font->FontSize)) + 5, point.y + txtSize.y*(fontSize / font->FontSize) + 5 }, ImColor(FillColour.x, FillColour.y, FillColour.z, FillColour.w), 1.0f);
 		}
 		if (outlined) {
-			drawList->AddRect({ point.x - 5, point.y - 5 }, {  point.x + (txtSize.x*(fontSize / font->FontSize)) + 5, point.y + txtSize.y + 5 }, ImColor(LineColour.x, LineColour.y, LineColour.x, LineColour.w), 1.0f);
+			drawList->AddRect({ point.x - 5, point.y - 5 }, {  point.x + (txtSize.x*(fontSize / font->FontSize)) + 5, point.y + txtSize.y*(fontSize / font->FontSize) + 5 }, ImColor(LineColour.x, LineColour.y, LineColour.x, LineColour.w), 1.0f);
 		}
 
 		drawList->AddText(
@@ -710,6 +719,13 @@ public:
 			strcpy_s(buffer, text.c_str());
 			ImGui::InputTextMultiline(buttonTxt.c_str(), buffer, sizeof(buffer));
 			text = buffer;
+
+			buttonTxt = "Font Size##fontSize" + id;
+			ImGui::DragFloat(buttonTxt.c_str(), &fontSize);
+
+
+			buttonTxt = "Fore colour##foreground" + id;
+			ImGui::ColorPicker4(buttonTxt.c_str(), &foreColour[0]);
 
 			DisplayColours();
 		}
@@ -805,7 +821,7 @@ public:
 	void Render(int uiWidth, int uiHeight, float UIEx, float UIEy, float UIEzoom, float xDisplacement) override {
 
 		ImGuiIO & io = ImGui::GetIO();
-		ImDrawList * drawList = ImGui::GetOverlayDrawList();
+		ImDrawList * drawList = ImGui::GetWindowDrawList();
 
 
 		if (vertices.size() > 0 && filled) {
@@ -868,6 +884,8 @@ public:
 	void deselectAll();
 
 	void GeneratePointers();
+
+	InterfaceItem* GetItemWithID(std::string id);
 
 	void addPercentBar();
 	void addLine(glm::vec2 start, glm::vec2 end, glm::vec4 col = glm::vec4(255, 255, 255, 255));

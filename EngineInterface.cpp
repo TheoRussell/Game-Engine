@@ -20,7 +20,7 @@ EngineInterface::~EngineInterface()
 {
 }
 
-
+//Adding a reference from a script to a GUI element.
 void EngineInterface::modifyScriptRef(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
 	ImGui::Begin("Script Refs", &UIErefopen);
 
@@ -32,14 +32,16 @@ void EngineInterface::modifyScriptRef(ClientHandler &client, PhysicsEngine &phys
 			for (std::pair<std::string, InterfaceItem*> pointerRef : *scr.second->GetInterfacePointers()) { //Loops through each reference to a UI element.	
 																									 //Checks if the user has selected an item, hovering it over an option and then releasing the button (to pair the reference to the element).
 				std::string identifier = pointerRef.first + "##" + std::to_string(index) + scr.second->GetName();
-				ImGui::Selectable(identifier.c_str());
+				ImGui::Selectable(identifier.c_str()); //Displays the reference in a tree in the UI.
 				if (ImGui::IsItemHovered() && ImGui::IsMouseReleased(0)) {
-
+					//Calculates distance element must be moved to return to origin, pre-pair.
 					glm::vec2 revertDist = refStartPos - glm::vec2(ImGui::GetMousePos().x, ImGui::GetMousePos().y);
 
 					for (InterfaceItem* item : UIE.Interface_Items) {
 						if (item->GetSelected()) {
+							//Finds the selected GUI element.
 							pointerRef.second = item;
+							//Pairs the script reference to the element pointer.
 							scriptInterfacePointers.at(scr.second).at(pointerRef.first) = item;
 							//Moves the element back to origin after pairing is complete.
 							item->Move(revertDist, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
@@ -71,6 +73,7 @@ void EngineInterface::OnLoad(ClientHandler &client, PhysicsEngine &physics) {
 		//For each new interface reference created, generate a map of the reference to the pointer of the element.
 		for (std::string refName : *scr.second->getNewInterfaceRefs()) {
 			scr.second->GetInterfacePointers()->insert(std::pair<std::string, InterfaceItem*>(refName, nullptr));
+			scr.second->GetInterfacePointers()->at(refName) = nullptr;
 		}
 
 
@@ -84,7 +87,7 @@ void EngineInterface::OnLoad(ClientHandler &client, PhysicsEngine &physics) {
 	}
 }
 
-
+//A function called whenever a new interface is loaded.
 void EngineInterface::OnStart() {
 	for (std::pair<ComponentScript*, std::map<std::string, InterfaceItem*>> pair : scriptInterfacePointers) {
 		//Updating each script to have the appropriate references added.
@@ -92,17 +95,44 @@ void EngineInterface::OnStart() {
 	}
 }
 
+//A function called every game tick.
 void EngineInterface::OnUpdate(float deltaTime, ClientHandler &client, PhysicsEngine &physics, ResourceManager &res) {
+	//Detecting mouse clicks. The ImGui built in function does not seem to always detect a mouse click.
+	if (ImGui::IsMouseDown(0)) {
+		mouseDown = true;
+	}
+	else {
+		if (mouseDown) {
+			mouseClicked = true;
+		}
+		mouseDown = false;
+	}
+	//Updating buttons.
+	glm::vec2 mousePosition = { (ImGui::GetMousePos().x - xDisplacement) / uiWidth, (ImGui::GetMousePos().y - UIEy) / uiHeight };
+	int index = 0;
+	//Iterates through each button.
+	for (UIButton button : UIE.buttons) {
+		if (mouseClicked) { //Checks if the mouse is clicked and if the mouse is hovering over the box.
+			if (button.InBoundingBox(mousePosition)) {
+				button.Clicked = true;
+			}
+		}
+		UIE.buttons[index] = button;
+		index++;
+	}
+
 	//Debug messages.
 	debug_msg_box.text = "";
 	try {
+		//Iterates through each debug message and increases its lifespan.
 		for (std::pair<std::string, float> msg : debug_messages) {
 			msg.second += deltaTime;
 			if (msg.second < 2.0f) {
+				//Adds the message to the debug warning box.
 				debug_messages.at(msg.first) = msg.second;
 				debug_msg_box.text.append("\n" + msg.first);
 			}
-			else {
+			else { //If the message has been visible for longer than 2 seconds, it is erased from the list.
 				debug_messages.erase(msg.first);
 			}
 		}
@@ -111,6 +141,7 @@ void EngineInterface::OnUpdate(float deltaTime, ClientHandler &client, PhysicsEn
 		
 	}
 
+	//Adds any messages that scripts have sent to the debug.
 	for (std::pair<std::string, ComponentScript*> cs : physics.scripts) {
 		for each (std::string s in cs.second->getDebugText()) {
 			debug_messages.insert(std::pair<std::string, float>(s, 0.0f));
@@ -119,28 +150,19 @@ void EngineInterface::OnUpdate(float deltaTime, ClientHandler &client, PhysicsEn
 
 
 
-	//Updating buttons.
-	glm::vec2 mousePosition = { (ImGui::GetMousePos().x - xDisplacement) / uiWidth, (ImGui::GetMousePos().y - UIEy) / uiHeight };
-	int index = 0;
-	for (UIButton button : UIE.buttons) {
-		if (ImGui::IsMouseClicked(0)) {
-			if (button.InBoundingBox(mousePosition)) {
-				button.Clicked = true;
-			}
-		}
-		UIE.buttons[index] = button;
-		index++;
-	}
+
 }
 
 
 void EngineInterface::changeUI(ClientHandler &client, PhysicsEngine &physics, std::string name) {
+	//Loads a new interface when the engine requests it.
 	if (loadInterface(client.WorkingDir + "Interfaces\\" + name + ".gui", client, physics)) {
 		client.project.startInterface = name;
 	}
 }
 
 void EngineInterface::deleteUI(ClientHandler &client, std::string name) {
+	//Deletes the user interface file.
 	std::string loc = client.WorkingDir + "Interfaces\\" + name + ".gui";
 	if (std::remove(loc.c_str())) {
 		//Deleted file.
@@ -149,6 +171,7 @@ void EngineInterface::deleteUI(ClientHandler &client, std::string name) {
 
 
 void EngineInterface::NormalDesign() {
+	//This is for designing the layout (ie, the colours it uses).
 	ImGuiStyle & style = ImGui::GetStyle();
 	style.Colors[ImGuiCol_WindowBg] = ImVec4(0.01f, 0.01f, 0.01f, 1.00f); //Background
 	style.Colors[ImGuiCol_Border] = ImVec4(0.01f, 0.01f, 0.01f, 1.00f); //Outline
@@ -158,7 +181,8 @@ void EngineInterface::NormalDesign() {
 	style.Colors[ImGuiCol_Button] = ImVec4(0.007, 0.203, 0.572, 1.0f);
 }
 
-//Top bar.
+
+//Top bar of the interface.
 void EngineInterface::Menu(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
 	ImGui::Begin("Menu", (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
 	ImGui::SetWindowSize(ImVec2(width, 50));
@@ -355,7 +379,8 @@ void EngineInterface::debug_write(std::string msg) {
 }
 
 
-void EngineInterface::projects(ClientHandler &client) {
+void EngineInterface::ProjectsTab(ClientHandler &client, ResourceManager &res) {
+	//Creating the projects tab.
 	ImGui_ImplGlfwGL3_NewFrame();
 
 	
@@ -375,7 +400,7 @@ void EngineInterface::projects(ClientHandler &client) {
 
 	ImGui::Text("Welcome to the Game Engine");
 
-
+	//Searching for all project documents.
 	std::string fileName;
 	std::vector<std::string> projectNames;
 	for (auto & p : std::experimental::filesystem::directory_iterator("src\\Projects\\")) {
@@ -383,14 +408,16 @@ void EngineInterface::projects(ClientHandler &client) {
 		fileName.erase(0, 13);
 		projectNames.push_back(fileName);
 	}
-
+	//Displaying the projects in a list in the tab.
 	if (projectNames.size() != 0) {
 		for each (std::string Proj in projectNames) {
 			ImGui::NewLine();
 			if (ImGui::Selectable(&Proj[0], false, ImGuiSelectableFlags_AllowDoubleClick)) {
+				//If user double clicks the project, it loads it.
 				if (ImGui::IsMouseDoubleClicked(0)) {
 					client.WorkingDir = "src\\Projects\\" + Proj + "\\";
 					if (client.loadProject()) {
+						res.loadSavedActors(client.WorkingDir);
 						client.engineView = Editor;
 					}
 					
@@ -399,7 +426,7 @@ void EngineInterface::projects(ClientHandler &client) {
 		}
 	}
 	else {
-		//If there are no projects already ge
+		//If there are no projects already created, create a new project.
 		client.project.generate("NewProject");
 		client.WorkingDir = "src\\Projects\\NewProject\\";
 		client.world = Scene();
@@ -409,6 +436,7 @@ void EngineInterface::projects(ClientHandler &client) {
 
 
 	if (ImGui::Button("New Project")) {
+
 		std::string newName = "Project";
 		bool newNameGen = false;
 		unsigned int index = 0;
@@ -444,19 +472,17 @@ void EngineInterface::projects(ClientHandler &client) {
 //Interface
 
 
-void EngineInterface::UIEitem(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
+void EngineInterface::UIEitem(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) { // For formatting items in the GUI.
 	ImGui::SetNextWindowPos({ (float)UIEboxx, (float)UIEboxy });
 	ImGui::Begin("New Object##UIEitembox", (bool*)true, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoTitleBar);
+	//Copying elements.
 	if (ImGui::Button("Copy")) {
-		UIEitembox = !copyUI();
+		UIEitembox = !CopyItemUI();
 	}
 	ImGui::SameLine();
+	//Pasting elements.
 	if (ImGui::Button("Paste")) {
-		pasteUI();
-		if (UIE.Interface_Clip.size() > 0) {
-			//Hide the new item box.
-			UIEitembox = false;
-		}
+		PasteItemUI();
 	}
 
 
@@ -464,60 +490,7 @@ void EngineInterface::UIEitem(ClientHandler &client, PhysicsEngine &physics, Res
 	for (InterfaceItem* item : UIE.Interface_Items) {
 		if (item->DisplayData()) {
 
-			//Deleting the element from the interface.
-			if (item->GetType() == s_Label) {
-				for (int i = 0; i < UIE.labels.size(); i++) {
-					if (&UIE.labels.at(i) == item) {
-						UIE.labels.erase(UIE.labels.begin() + i);
-						break;
-					}
-				}
-			}
-			if (item->GetType() == s_Button) {
-				for (int i = 0; i < UIE.buttons.size(); i++) {
-					if (&UIE.buttons.at(i) == item) {
-						UIE.buttons.erase(UIE.buttons.begin() + i);
-						break;
-					}
-				}
-			}
-			if (item->GetType() == s_PBar) {
-				for (int i = 0; i < UIE.bars.size(); i++) {
-					if (&UIE.bars.at(i) == item) {
-						UIE.bars.erase(UIE.bars.begin() + i);
-						break;
-					}
-				}
-			}
-			if (item->GetType() == s_Rectangle) {
-				for (int i = 0; i < UIE.rectangles.size(); i++) {
-					if (&UIE.rectangles.at(i) == item) {
-						UIE.rectangles.erase(UIE.rectangles.begin() + i);
-						break;
-					}
-				}
-			}
-			if (item->GetType() == s_Poly) {
-				for (int i = 0; i < UIE.polygons.size(); i++) {
-					if (&UIE.polygons.at(i) == item) {
-						UIE.polygons.erase(UIE.polygons.begin() + i);
-						break;
-					}
-				}
-			}
-			if (item->GetType() == s_Line) {
-				for (int i = 0; i < UIE.lines.size(); i++) {
-					if (&UIE.lines.at(i) == item) {
-						UIE.lines.erase(UIE.lines.begin() + i);
-						break;
-					}
-				}
-			}
-
-
-
-			UIE.Interface_Items.erase(UIE.Interface_Items.begin() + index);
-			UIE.GeneratePointers();
+			DeleteItemUI(item, index);
 
 			break;
 		}
@@ -525,21 +498,27 @@ void EngineInterface::UIEitem(ClientHandler &client, PhysicsEngine &physics, Res
 	}
 
 
+	float mouse_x = (ImGui::GetMousePos().x - UIEx - xDisplacement);
+	float mouse_y = (ImGui::GetMousePos().y - UIEy);
 	ImGui::TextDisabled("NEW");
 	if (ImGui::Button("% Bar")) {
 		UIE.addPercentBar();
+		UIE.bars[UIE.bars.size() - 1].Move({ mouse_x, mouse_y}, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 		UIEitembox = false;
 	}
 	if (ImGui::Button("Rectangle")) {
 		UIE.addRect();
+		UIE.rectangles[UIE.rectangles.size() - 1].Move({ mouse_x, mouse_y }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 		UIEitembox = false;
 	}
 	if (ImGui::Button("Label")) {
 		UIE.addLabel();
+		UIE.labels[UIE.labels.size() - 1].Move({ mouse_x, mouse_y }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 		UIEitembox = false;
 	}
 	if (ImGui::Button("Button")) {
 		UIE.addButton();
+		UIE.buttons[UIE.buttons.size() - 1].Move({ mouse_x, mouse_y }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 		UIEitembox = false;
 	}
 	//Used to prevent clicking generating a new polygon.
@@ -548,24 +527,164 @@ void EngineInterface::UIEitem(ClientHandler &client, PhysicsEngine &physics, Res
 	ImGui::End();
 }
 
-bool EngineInterface::copyUI() {
+void EngineInterface::DeleteItemUI(InterfaceItem* item, unsigned int index) {
+	//Deleting the element from the interface.
+	if (item->GetType() == s_Label) {
+		for (int i = 0; i < UIE.labels.size(); i++) {
+			if (&UIE.labels.at(i) == item) {
+				UIE.labels.erase(UIE.labels.begin() + i);
+				break;
+			}
+		}
+	}
+	if (item->GetType() == s_Button) {
+		for (int i = 0; i < UIE.buttons.size(); i++) {
+			if (&UIE.buttons.at(i) == item) {
+				UIE.buttons.erase(UIE.buttons.begin() + i);
+				break;
+			}
+		}
+	}
+	if (item->GetType() == s_PBar) {
+		for (int i = 0; i < UIE.bars.size(); i++) {
+			if (&UIE.bars.at(i) == item) {
+				UIE.bars.erase(UIE.bars.begin() + i);
+				break;
+			}
+		}
+	}
+	if (item->GetType() == s_Rectangle) {
+		for (int i = 0; i < UIE.rectangles.size(); i++) {
+			if (&UIE.rectangles.at(i) == item) {
+				UIE.rectangles.erase(UIE.rectangles.begin() + i);
+				break;
+			}
+		}
+	}
+	if (item->GetType() == s_Poly) {
+		for (int i = 0; i < UIE.polygons.size(); i++) {
+			if (&UIE.polygons.at(i) == item) {
+				UIE.polygons.erase(UIE.polygons.begin() + i);
+				break;
+			}
+		}
+	}
+	if (item->GetType() == s_Line) {
+		for (int i = 0; i < UIE.lines.size(); i++) {
+			if (&UIE.lines.at(i) == item) {
+				UIE.lines.erase(UIE.lines.begin() + i);
+				break;
+			}
+		}
+	}
+
+
+	UIE.Interface_Items.erase(UIE.Interface_Items.begin() + index);
+	UIE.GeneratePointers();
+
+}
+
+bool EngineInterface::CopyItemUI() {
 	bool copied = false;
 
+	UIE.Interface_Clip.clear();
 	for (InterfaceItem* item : UIE.Interface_Items) {
 		if (item->GetSelected()) {
 			UIE.Interface_Clip.push_back(item);
 			copied = true;
 		}
 	}
-
-
-
 	return copied;
 }
 
-void EngineInterface::pasteUI() {
-	glm::vec2 mousePos(UIEboxx, UIEboxy);
-	std::cout << "Needs doing" << std::endl;
+void EngineInterface::PasteItemUI() {
+
+	if (UIE.Interface_Clip.size() > 0) {
+		//Hide the new item box.
+		std::vector<std::string> temp_ids;
+
+
+		//Iterating through each of the copied items to copy them into the lists.
+		//Since it uses pointers, they will change when the size of the vector changes.
+		//That is why the items IDs are stored in seperate lists so that the pointers can be regenerated.
+		for (InterfaceItem* general_item : UIE.Interface_Clip) {
+			temp_ids.push_back(general_item->GetID());
+			//Copying buttons.
+			if (general_item->GetType() == s_Button) {
+				UIButton * item = dynamic_cast<UIButton*>(general_item);
+				if (item != nullptr) {
+					UIButton b;
+					b = *item;
+					b.Move({ 15.0f, 15.0f }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+					b.SetID(UIE.genID());
+					UIE.buttons.push_back(b);
+				}
+			}
+			//Rectangles.
+			else if (general_item->GetType() == s_Rectangle) {
+				UIRectangle * item = dynamic_cast<UIRectangle*>(general_item);
+				if (item != nullptr) {
+					UIRectangle b;
+					b = *item;
+					b.Move({ 15.0f, 15.0f }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+					b.SetID(UIE.genID());
+					UIE.rectangles.push_back(b);
+				}
+			}
+			//Percentage bars.
+			else if (general_item->GetType() == s_PBar) {
+				UIPBar * item = dynamic_cast<UIPBar*>(general_item);
+				if (item != nullptr) {
+					UIPBar b;
+					b = *item;
+					b.Move({ 15.0f, 15.0f }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+					b.SetID(UIE.genID());
+					UIE.bars.push_back(b);
+				}
+			}
+			//Labels
+			else if (general_item->GetType() == s_Label) {
+				UILabel * item = dynamic_cast<UILabel*>(general_item);
+				if (item != nullptr) {
+					UILabel b;
+					b = *item;
+					b.Move({ 15.0f, 15.0f }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+					b.SetID(UIE.genID());
+					UIE.labels.push_back(b);
+				}
+			}
+			//Polygons
+			else if (general_item->GetType() == s_Poly) {
+				UIPolygon * item = dynamic_cast<UIPolygon*>(general_item);
+				if (item != nullptr) {
+					UIPolygon b;
+					b = *item;
+					b.Move({ 15.0f, 15.0f }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+					b.SetID(UIE.genID());
+					UIE.polygons.push_back(b);
+				}
+			}
+			//Lines
+			else if (general_item->GetType() == s_Line) {
+				UILine * item = dynamic_cast<UILine*>(general_item);
+				if (item != nullptr) {
+					UILine b;
+					b = *item;
+					b.Move({ 15.0f, 15.0f }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+					b.SetID(UIE.genID());
+					UIE.lines.push_back(b);
+				}
+			}
+		}
+
+		UIE.GeneratePointers();
+		UIE.Interface_Clip.clear();
+		for (std::string id : temp_ids) {
+			UIE.Interface_Clip.push_back(UIE.GetItemWithID(id));
+		}
+
+		UIEitembox = false;
+	}
 
 	//for each (UIRectangle box in UIE.clipboard.rect) {
 	//	pointToScreen(box.topLeft, uiWidth, uiHeight);
@@ -652,6 +771,7 @@ void EngineInterface::findSelection() {
 	for (InterfaceItem* item : UIE.Interface_Items) {
 		//Checks if mouse intersects the items bounding area.
 		try {
+			//Labels require a special check as it utilises the ImGui built in function to detect font width etc, rather than
 			if (item->GetType() == s_Label) {
 				glm::vec2 topLeft = item->GetVertices()[0];
 				glm::vec2 lowRight = topLeft;
@@ -666,7 +786,9 @@ void EngineInterface::findSelection() {
 				newWidth /= (UIEzoom * uiWidth);
 				lowRight.x += newWidth;
 
-				lowRight.y += (txtSize.y + 5) / (UIEzoom * uiHeight);
+				float newHeight = txtSize.y * (lbl->fontSize / ImGui::GetFontSize()) + 5;
+				newHeight /= (UIEzoom * uiWidth);
+				lowRight.y += newHeight;
 
 
 				if (pointInRect(mouseRelative, topLeft, lowRight)) {
@@ -690,6 +812,7 @@ void EngineInterface::findSelection() {
 	}
 }
 
+//Used for rendering the GUI.
 void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
 
 	ImGui::SetNextWindowBgAlpha(0.0f);
@@ -702,16 +825,15 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 	ImGui::Begin("##UIOverlay", (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
 
 
-
 	//All objects will have a position of 0-1;
-	//Rendering the created objects.
-
+	//Rendering the created elements.
 	UIE.uiWidth = uiWidth;
 	UIE.uiHeight = uiHeight;
 	for (InterfaceItem* item : UIE.Interface_Items) {
 		item->Render(uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 	}
 
+	//Displaying any debug messages to the user when in the game.
 	if (client.engineView == Game) {
 		debug_msg_box.Render(uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
 	}
@@ -724,18 +846,40 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 
 		ImVec2 mousePos = ImGui::GetMousePos();
 
-		if ((io.KeysDown[GLFW_KEY_LEFT_CONTROL] | io.KeysDown[GLFW_KEY_RIGHT_CONTROL]) && (io.KeysDown[GLFW_KEY_V])) {
+		//Copying GUI items.
+		if ((io.KeysDown[GLFW_KEY_LEFT_CONTROL] | io.KeysDown[GLFW_KEY_RIGHT_CONTROL]) && (io.KeysDown[GLFW_KEY_C]) && !UIEitembox) {
+			ctrlC_down = true;
+		}
+		else if (ctrlC_down) {
+			ctrlC_down = false;
 			UIEboxx = mousePos.x;
 			UIEboxy = mousePos.y;
-			pasteUI();
+			CopyItemUI();
 		}
-		if ((io.KeysDown[GLFW_KEY_LEFT_CONTROL] | io.KeysDown[GLFW_KEY_RIGHT_CONTROL]) && (io.KeysDown[GLFW_KEY_C])) {
+		//Pasting GUI items.
+		if ((io.KeysDown[GLFW_KEY_LEFT_CONTROL] | io.KeysDown[GLFW_KEY_RIGHT_CONTROL]) && (io.KeysDown[GLFW_KEY_V]) && !UIEitembox) {
+			ctrlV_down = true;
+
+		}
+		else if (ctrlV_down) {
+			ctrlV_down = false;
 			UIEboxx = mousePos.x;
 			UIEboxy = mousePos.y;
-			copyUI();
+			PasteItemUI();
+		}
+		//Deleting GUI items.
+		if ((io.KeysDown[GLFW_KEY_DELETE]) && !UIEitembox) {
+			unsigned int index = 0;
+			for (InterfaceItem* item : UIE.Interface_Items) {
+				if (item->GetSelected()) {
+					DeleteItemUI(item, index);
+					break;
+				}
+				index++;
+			}
 		}
 
-
+		//Displaying the formatting box of the GUI.
 		if (ImGui::IsMouseClicked(1)) {
 			UIEboxx = mousePos.x;
 			UIEboxy = mousePos.y;
@@ -743,38 +887,51 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 			findSelection();
 		}
 
-		//Moving the display.
+		//Moving the GUI display.
 		if (ImGui::IsMouseDoubleClicked(2) && inScene(ImGui::GetMousePos())) {
 			UIEx = 0;
 			UIEy = 0;
+			GUII_y_change = 0;
 			UIEzoom = 1;
 		}
 		
-		//Zooming
+		//Zooming the GUI items.
 		if (client.ScrollData != 0.0f) {
+			//Scrolling the inspector - not changing the size of elements.
 			if (!io.KeysDown[GLFW_KEY_LEFT_CONTROL]) {
 				UIEzoom += (float)client.ScrollData * 0.1;
 				if (UIEzoom <= 0.1f) {
 					UIEzoom = 0.1;
 				}
 			}
-			else {
+			else if (io.KeysDown[GLFW_KEY_LEFT_CONTROL] && !UIEitembox) {
+				//Changing the size of elements.
 				int index = 0;
-				float scale;
-				if (io.KeysDown[GLFW_KEY_LEFT_ALT]) {
-					scale = (float)client.ScrollData * 0.01;
+				float scale = 1.0f;
+				//Increasing scale.
+				if (io.KeysDown[GLFW_KEY_LEFT_ALT] && client.ScrollData > 0) {
+					scale = 1.01;
 				}
-				else {
-					scale = (float)client.ScrollData * 0.1;
+				else if (!io.KeysDown[GLFW_KEY_LEFT_ALT] && client.ScrollData > 0) {
+					scale = 1.1;
+				}
+				//Decreasing scale
+				else if (io.KeysDown[GLFW_KEY_LEFT_ALT] && client.ScrollData < 0) {
+					scale = 0.99;
+				}
+				else if (!io.KeysDown[GLFW_KEY_LEFT_ALT] && client.ScrollData < 0) {
+					scale = 0.9;
 				}
 
 				for (InterfaceItem* item : UIE.Interface_Items) {
-					item->Scale({ scale, scale }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+					if (item->GetSelected()) {
+						item->Scale({ scale, scale }, uiWidth, uiHeight, UIEx, UIEy, UIEzoom, xDisplacement);
+					}
 				}
 			}
 		}
 		
-		//Dragging.
+		//The following code is used for moving the whole GUI for inspection purposes.
 		if (ImGui::IsMouseDown(2)) {
 			UIEdown++;
 			if (UIEdown < 2) {
@@ -784,7 +941,7 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 			else {
 				if (inScene(mousePos)) {
 					UIEx += mousePos.x - UIExo;
-					UIEy += mousePos.y - UIEyo;
+					GUII_y_change += mousePos.y - UIEyo;
 					UIExo = mousePos.x;
 					UIEyo = mousePos.y;
 				}
@@ -794,6 +951,10 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 			UIEdown = 0;
 		}
 
+
+
+
+		//This mode is for moving and interacting with elements, rather than creating new elements.
 		if (clickMode == EDIT) {
 			if (ImGui::IsMouseReleased(0)) {
 				UIEdown = 0;
@@ -841,6 +1002,7 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 		}
 
 		//Adding designs.
+		//This selection is used for creating dynamic structures (ie, lines and polygons that can't be created by the format tab).
 		if (clickMode == CREATE) {
 			//When the user double clicks or presses enter, the new polygon will be completed.
 			if (ImGui::IsMouseDoubleClicked(0) | io.KeysDown[GLFW_KEY_ENTER]) {
@@ -854,14 +1016,14 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 			}
 			//If the user continues to click whilst still generating the polygon, the new point will be added to a list.
 			else if (ImGui::IsMouseClicked(0)) {
-				if (mousePos.x > xDisplacement && mousePos.y > 50) {
+				if (mousePos.x > xDisplacement && mousePos.y > UIEy) {
 					if (UIEitembox && mousePos.x >= UIEboxx && mousePos.x <= UIEboxx + UIEboxwidth && mousePos.y >= UIEboxy && mousePos.y <= UIEboxy + UIEboxheight) {
 						//Prevents generating of new polygons when using the menu of items.
 					}
 					else {
 						glm::vec2 pos;
 						pos.x = (mousePos.x - UIEx - xDisplacement) / (uiWidth*UIEzoom);
-						pos.y = (mousePos.y - UIEy - 50) / (uiHeight*UIEzoom);
+						pos.y = (mousePos.y - UIEy) / (uiHeight*UIEzoom);
 						if (UIEpos.size() > 0) {
 							if (io.KeysDown[GLFW_KEY_LEFT_SHIFT]) {
 								glm::vec2 lastPos = UIEpos[UIEpos.size()];
@@ -879,24 +1041,24 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 
 				}
 			}
-
+			//Rendering the created polygon as it is being made.
 			if (UIEpos.size() > 0) {
 				int ind = 0;
 				for each (glm::vec2 vertex in UIEpos) {
 					if (ind == UIEpos.size() - 1) {
 						if (io.KeysDown[GLFW_KEY_LEFT_SHIFT]) {
 							glm::vec2 lastPos = UIEpos[UIEpos.size() - 1];
-							lastPos.y = (lastPos.y * uiHeight * UIEzoom) + 50 + UIEy;
+							lastPos.y = (lastPos.y * uiHeight * UIEzoom) + UIEy;
 							lastPos.x = (lastPos.x * uiWidth * UIEzoom) + xDisplacement + UIEx;
 							float xChange = abs(mousePos.x - lastPos.x);
 							float yChange = abs(mousePos.y - lastPos.y);
 							if (xChange > yChange) { mousePos.y = lastPos.y; }
 							if (xChange < yChange) { mousePos.x = lastPos.x; }
 						}
-						drawList->AddLine({ UIEpolyX*uiWidth*UIEzoom + xDisplacement + UIEx, UIEpolyY*uiHeight*UIEzoom + 50 + UIEy }, { mousePos.x, mousePos.y }, IM_COL32(255, 0, 0, 255), 5.0f);
+						drawList->AddLine({ UIEpolyX*uiWidth*UIEzoom + xDisplacement + UIEx, UIEpolyY*uiHeight*UIEzoom + UIEy }, { mousePos.x, mousePos.y }, IM_COL32(255, 0, 0, 255), 5.0f);
 					}
 					else {
-						drawList->AddLine({ UIEpos[ind].x*uiWidth*UIEzoom + xDisplacement + UIEx, UIEpos[ind].y*uiHeight*UIEzoom + 50 + UIEy }, { UIEpos[ind + 1].x*uiWidth*UIEzoom + xDisplacement + UIEx, UIEpos[ind + 1].y*uiHeight*UIEzoom + 50 + UIEy }, IM_COL32(255, 0, 0, 255), 5.0f);
+						drawList->AddLine({ UIEpos[ind].x*uiWidth*UIEzoom + xDisplacement + UIEx, UIEpos[ind].y*uiHeight*UIEzoom + UIEy }, { UIEpos[ind + 1].x*uiWidth*UIEzoom + xDisplacement + UIEx, UIEpos[ind + 1].y*uiHeight*UIEzoom + UIEy }, IM_COL32(255, 0, 0, 255), 5.0f);
 					}
 					ind++;
 				}
@@ -916,8 +1078,34 @@ void EngineInterface::userInterface(ClientHandler &client, PhysicsEngine &physic
 	}
 }
 
+void EngineInterface::RenderGUIBackground() {
+	ImGui::SetNextWindowBgAlpha(0.0f);
+	ImGui::SetNextWindowPos({ 0.0f, 0.0f });
+	ImGui::SetNextWindowSize({ (float)uiWidth, (float)uiHeight });
+	ImGui::Begin("##GUILineOverlay", (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs);
+	ImDrawList * drawList = ImGui::GetWindowDrawList();
 
-//Engine
+	//Each square will be 100 px;
+	float squareWidth = 100.0f;
+	float squareCount = (float)uiWidth / squareWidth;
+
+	ImU32 lineColour = ImGui::ColorConvertFloat4ToU32({ 128.0f,128.0f,255.0f,255.0f });
+
+	//Vertical lines
+	for (float x = (UIEx % (int)squareWidth); x < uiWidth; x += squareWidth * UIEzoom) {
+		drawList->AddLine({ x, (float)UIEy - GUII_y_change }, { x, (float)uiHeight }, lineColour, 1.0f);
+	}
+	//Horizontal lines
+	for (float y = (UIEy % (int)squareWidth) + UIEy - GUII_y_change; y < uiHeight; y += squareWidth * UIEzoom) {
+		if (y > UIEy - GUII_y_change) {
+			drawList->AddLine({ 0, y }, { (float)uiWidth, y }, lineColour, 1.0f);
+		}
+	}
+
+	ImGui::End();
+
+}
+
 
 //A menu for exiting the game.
 void EngineInterface::playStopGame(ClientHandler &client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts) {
@@ -936,12 +1124,16 @@ void EngineInterface::playStopGame(ClientHandler &client, PhysicsEngine & physic
 
 	ImGui::SameLine();
 	//Entering the game from the editor.
+	//Changing the shape of the canvas to correspond with the view (ie, there should be no displacement of the scene when you're in it).
 	if (ImGui::Button("PLAY/STOP"))  {
-
+		//Entering the editor.
 		if (client.engineView == Game) {
 			client.engineView = Editor;
 			client.InGame = false;
+
+			OnLoad(client, physics);
 		}
+		//Entering the game.
 		else if (client.engineView == Editor) {
 			xDisplacement = 0;
 			yDisplacement = 50;
@@ -954,7 +1146,7 @@ void EngineInterface::playStopGame(ClientHandler &client, PhysicsEngine & physic
 		}
 	}
 
-
+	//A checkbox to disable the interface while designing the scene.
 	ImGui::SameLine();
 	ImGui::Checkbox("Show UI##showUIRB", &client.showUI);
 
@@ -967,111 +1159,117 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 	//Colour of the interface.
 	NormalDesign();
 
-
-	//Determining bounds for the engine.
-	UIEy = 0;
-	if (client.engineView != PRODUCT && client.engineView != Game) {
-		Menu(client, physics, res, script);
+	if (showReloadScreen) {
+		showReload(client);
 	}
 	else {
-		UIEy = (height - uiHeight) / 2;
-		if (UIEy < 50) {
-			UIEy = 50;
+		//Determining bounds for the engine.
+		UIEy = 0;
+		if (client.engineView != PRODUCT && client.engineView != Game) {
+			Menu(client, physics, res, script);
 		}
-	}
-
-
-	if (client.engineView == UIEditor) {
-		xDisplacement = 0;
-		yDisplacement = 0;
-
-		modifyScriptRef(client, physics, res, script);
-	} else if (client.engineView == PRODUCT) {
-		
-		userInterface(client, physics, res, script);
-	} else if (client.engineView == Game | client.engineView == Editor) { //inGame
-		playStopGame(client, physics, res, script);
-	}
-
-
-
-
-
-
-
-
-
-	//Entering the engine game.
-	if (ImGui::IsMouseClicked(0)) {
-		int mouse_x = ImGui::GetMousePos().x;
-		int mouse_y = ImGui::GetMousePos().y;
-		if (mouse_x > xDisplacement && mouse_x < width && mouse_y > UIEy && mouse_y < uiHeight + UIEy) {
-			if (!client.InEditor) {
-				client.InEditor = true;
-				client.lastX = mouse_x;
-				client.lastY = mouse_y;
+		else {
+			UIEy = (height - uiHeight) / 2;
+			if (UIEy < 50) {
+				UIEy = 50;
 			}
 		}
-	}
+
+
+
+		if (client.engineView == UIEditor) {
+			xDisplacement = 0;
+			yDisplacement = 0;
+
+			UIEy += GUII_y_change;
+
+			RenderGUIBackground();
+
+			modifyScriptRef(client, physics, res, script);
+		}
+		else if (client.engineView == PRODUCT) {
+
+			userInterface(client, physics, res, script);
+		}
+		else if (client.engineView == Game | client.engineView == Editor) { //inGame
+			playStopGame(client, physics, res, script);
+		}
 
 
 
 
 
-	if (client.showUI && (client.engineView == Game | client.engineView == UIEditor | client.engineView == Editor)) {
-		userInterface(client, physics, res, script);
-	}
-
-	if (!client.InGame && !client.InEditor && showImport) {
-		importItem(client, physics, res, script);
-	}
-
-	if (client.viewingCursor) {
-
-
-		
-		if (client.engineView != UIEditor && client.engineView != PRODUCT && client.engineView != Game) {
-
-				if (!showReloadScreen) {
-
-					ImGui::Begin("Project", (bool*)true, ImGuiWindowFlags_NoMove);
-					ImGui::SetWindowPos(ImVec2(0, 50));
-
-					displayScenes(client, physics);
-					displayActors(res);
-					displayWorld(client, physics);
-					displayUserInterfaces(client, physics);
-
-
-					xDisplacement = ImGui::GetWindowWidth();
-					yDisplacement = ImGui::GetWindowHeight();
-					if (ImGui::GetWindowWidth() > width * 2 / 3) {
-						xDisplacement = 2 * width / 3;
-						ImGui::SetWindowSize(ImVec2(xDisplacement, yDisplacement));
-					}
-
-					ImGui::End();
 
 
 
-					ImGui::Begin("Inspector", (bool*)true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
-					ImGui::SetWindowSize(ImVec2(xDisplacement, 1080 - yDisplacement));
-					ImGui::SetWindowPos(ImVec2(0, yDisplacement + 50));
 
-					displaySelectedObj(client, physics, res);
+		//Entering the engine game.
+		if (ImGui::IsMouseClicked(0)) {
+			int mouse_x = ImGui::GetMousePos().x;
+			int mouse_y = ImGui::GetMousePos().y;
+			if (mouse_x > xDisplacement && mouse_x < width && mouse_y > UIEy && mouse_y < uiHeight + UIEy) {
+				if (!client.InEditor) {
+					client.InEditor = true;
+					client.lastX = mouse_x;
+					client.lastY = mouse_y;
+				}
+			}
+		}
 
-					ImGui::End();
 
-					DragNDrop(client, physics, res, script);
 
+
+
+		if (client.showUI && (client.engineView == Game | client.engineView == UIEditor | client.engineView == Editor)) {
+			userInterface(client, physics, res, script);
+		}
+
+		if (!client.InGame && !client.InEditor && showImport) {
+			importItem(client, physics, res, script);
+		}
+
+
+		if (client.engineView == Editor) {
+
+			if (!showReloadScreen) {
+
+				ImGui::Begin("Project", (bool*)true, ImGuiWindowFlags_NoMove);
+				ImGui::SetWindowPos(ImVec2(0, 50));
+
+				displayUserInterfaces(client, physics);
+				displayScenes(client, physics);
+				displayWorld(client, physics);
+				displayActors(res);
+
+
+
+				xDisplacement = ImGui::GetWindowWidth();
+				yDisplacement = ImGui::GetWindowHeight();
+				if (ImGui::GetWindowWidth() > width * 2 / 3) {
+					xDisplacement = 2 * width / 3;
+					ImGui::SetWindowSize(ImVec2(xDisplacement, yDisplacement));
 				}
 
-				if (!showReloadScreen && showNewComponent && client.world.getSelected() > -1) {
-					displayNewComponent(client, physics, res, script);
-				}
-				if (showReloadScreen) {
-					showReload(client);
-				}
+				ImGui::End();
+
+
+
+				ImGui::Begin("Inspector", (bool*)true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
+				ImGui::SetWindowSize(ImVec2(xDisplacement, 1080 - yDisplacement));
+				ImGui::SetWindowPos(ImVec2(0, yDisplacement + 50));
+
+				displaySelectedObj(client, physics, res);
+
+				ImGui::End();
+
+				DragNDrop(client, physics, res, script);
+
+			}
+
+			if (!showReloadScreen && showNewComponent && client.world.getSelected() > -1) {
+				displayNewComponent(client, physics, res, script);
+			}
+
 
 		}
 		else if (client.engineView == UIEditor) {
@@ -1082,8 +1280,9 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 			ImGui::End();
 		}
 
-
 	}
+
+	
 
 	ImGui::Render();
 	ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
@@ -1271,26 +1470,37 @@ void EngineInterface::displayNewComponent(ClientHandler &client, PhysicsEngine &
 		}
 	}
 	else if (component_type == 3) {
+		//Displaying scripts. Also where they can be created or destroyed.
 		ImGui::TextDisabled("Script");
+		//Allow user to type in name of the script (for creation).
 		if (component_name == "") {
 			strcpy_s(component_name, "NewScript");
 		}
 		ImGui::InputText("Name", component_name, 255);
+
+		//New script is created.
 		if (ImGui::Button("New")) {
+			//Checks if the scripts name is the same as any other.
 			for (std::pair<std::string,ComponentScript*> script : physics.scripts) {
 				if (script.second->GetName() == component_name) {
 					std::string name = component_name;
+					//Adds text to the end to make it unique.
 					name.append("(1)");
 					strcpy_s(component_name, name.c_str());
 				}
 			}
+			//Generates script files.
 			scripts.NewScript(component_name);
+			//Adds script to object.
 			client.world.objects[selected].addScript(component_name);
+			//User must then reload the project.
 			showReloadScreen = true;
 		}
 		ImGui::SameLine();
+		//Deleting scripts.
 		if (ImGui::Button("Delete")) {
 			unsigned int id = 0;
+			//Checks if the script exists.
 			for (std::pair<std::string, ComponentScript*> script : physics.scripts) {
 				if (script.second->GetName() == component_name) {
 					unsigned int index = 0;
@@ -1299,13 +1509,14 @@ void EngineInterface::displayNewComponent(ClientHandler &client, PhysicsEngine &
 						client.world.setObject(index, obj);
 						index++;
 					}
-					scripts.DeleteScript(component_name);
+					scripts.DeleteScript(component_name, true);
+					//User must reload the solution.
 					showReloadScreen = true;
 				}
 				id++;
 			}
 		}
-
+		//Displaying scripts.
 		for (std::pair<std::string, ComponentScript*> script : physics.scripts) {
 			bool has = false;
 			for (std::string id : client.world.objects[selected].componentScriptIDs) {
@@ -1363,36 +1574,47 @@ void EngineInterface::displayActors(ResourceManager &res) {
 void EngineInterface::displayScenes(ClientHandler &client, PhysicsEngine &physics) {
 	std::vector<std::string> sceneNames;
 	if (ImGui::TreeNode("Scenes")) {
-
+		//Create a new scene.
 		if (ImGui::Button("New")) {
-			client.world.saveBinary(client.WorkingDir);
+			if (!client.world.scene_deleted) {
+				client.world.saveBinary(client.WorkingDir);
+			}
 			client.world = Scene();
 		}
 
+		//Detecting each of the scene files in the project folder.
 		std::string fileName;
 		for (auto & p : std::experimental::filesystem::directory_iterator(client.WorkingDir + "Scenes\\")) {
+			//Iterates through each document and searches for .SCENE files.
 			fileName = p.path().string();
 			fileName.erase(0, client.WorkingDir.length() + 7);
 
 			if (fileName.find(".SCENE") != std::string::npos) {
+				//Removes the path and just keeps the scene name.
 				fileName.erase(fileName.length() - 6, 6);
 				sceneNames.push_back(fileName);
 			}
 		}
-
+		//Display this if no scenes were found.
 		if (sceneNames.size() == 0) {
 			ImGui::TextColored(ImVec4(0.7f, 0.0f, 0.0f, 1.0f), "No scenes were located!");
 		}
 		else {
-			for each (std::string sceneName in sceneNames) {
+			//Display each of the saved scenes.
+			for (std::string sceneName : sceneNames) {
 				bool selectedScene = false;
+				//check if the scene is being modified.
 				if (sceneName == client.world.name) {
 					selectedScene = true;
 				}
+				//Select the scene by double clicking.
 				if (ImGui::Selectable(sceneName.c_str(), selectedScene, ImGuiSelectableFlags_AllowDoubleClick)) {
 					if (ImGui::IsMouseDoubleClicked(0)) {
 						if (!selectedScene) {
-							client.world.saveBinary(client.WorkingDir);
+							//Change scenes.
+							if (!client.world.scene_deleted) {
+								client.world.saveBinary(client.WorkingDir);
+							}
 							client.world.loadBinary(client.WorkingDir + "Scenes\\" + sceneName);
 						}
 					}
@@ -1405,36 +1627,32 @@ void EngineInterface::displayScenes(ClientHandler &client, PhysicsEngine &physic
 		ImGui::TreePop();
 	}
 }
+
 void EngineInterface::displayWorld(ClientHandler &client, PhysicsEngine &physics) {
 	if (ImGui::TreeNode("World")) {
 		if (ImGui::Button("Save")) {
-			if (client.world.saveBinary(client.WorkingDir)) {
-				std::cout << "saved scene" << std::endl;
+			//Save the scene if it is not deleted.
+			if (!client.world.scene_deleted) {
+				client.world.saveBinary(client.WorkingDir);
 			}
 		}
 		ImGui::SameLine();
+		//Delete the scene.
 		if (ImGui::Button("Delete")) {
-			client.world.deleteScene();
+			client.world.deleteScene(client.project.directory + "Scenes\\" + client.world.name + ".SCENE");
+			
 		}
 		if (ImGui::Button("Set as start level")) {
 			client.project.startScene = client.world.name;
 			client.project.save();
 		}
 
-
+		
 		client.world.voidCol = inputColour("VOID colour", glm::vec4({ client.world.voidCol , 0.0f }), true);
 		client.world.d_ambient = inputVec3("Ambient intensity", glm::vec4({ client.world.d_ambient , 0.0f }));
 		client.world.d_diffuse = inputVec3("Diffuse intensity", glm::vec4({ client.world.d_diffuse , 0.0f }));
 		client.world.d_specular = inputVec3("Specular intensity", glm::vec4({ client.world.d_specular , 0.0f }));
 
-		//float voidCol[3];
-		//voidCol[0] = client.world.voidCol.x;
-		//voidCol[1] = client.world.voidCol.y;
-		//voidCol[2] = client.world.voidCol.z;
-		//ImGui::ColorEdit3("VOID colour", voidCol);
-		//client.world.voidCol.x = voidCol[0];
-		//client.world.voidCol.y = voidCol[1];
-		//client.world.voidCol.z = voidCol[2];
 
 		char name[1024];
 		strcpy_s(name, client.world.name.c_str());
@@ -1594,7 +1812,7 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 			}
 			ImGui::SameLine();
 			if (ImGui::Button("Make actor")) {
-				res.newActor(obj);
+				res.newActor(obj, client.WorkingDir);
 			}
 
 
@@ -1639,9 +1857,10 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 				//XYZ coords
 				ImGui::Checkbox("Does Gravity", &obj.physicsBody.doesGravity);
 				ImGui::DragFloat("Mass", &obj.physicsBody.mass);
+				ImGui::Checkbox("Enabled", &obj.physicsBody.enabled);
 
 				if (ImGui::TreeNode("Collision")) {
-					ImGui::Checkbox("Enabled", &obj.physicsBody.collides);
+					ImGui::Checkbox("Detects Collisions", &obj.physicsBody.collides);
 					if (obj.physicsBody.collides) {
 						if (ImGui::Button("+")) {
 							obj.physicsBody.coll_Box.push_back(BoxCollider());
@@ -1985,29 +2204,29 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 					ImGui::Checkbox("Enabled", &obj.componentScriptData[scriptID].enabled);
 
 					//Bool values
-					for each (std::pair<std::string, bool> data in obj.componentScriptData[scriptID].variable_bool) {
+					for (std::pair<std::string, bool> data : obj.componentScriptData[scriptID].variable_bool) {
 						ImGui::Checkbox(data.first.c_str(), &data.second);
 						obj.componentScriptData[scriptID].variable_bool[data.first] = data.second;
 					}
 					//Int values
-					for each (std::pair<std::string, int> data in obj.componentScriptData[scriptID].variable_int) {
+					for (std::pair<std::string, int> data : obj.componentScriptData[scriptID].variable_int) {
 						ImGui::DragInt(data.first.c_str(), &data.second, 1);
 						obj.componentScriptData[scriptID].variable_int[data.first] = data.second;
 					}
 					//Unsigned int values
-					for each (std::pair<std::string, unsigned int> data in obj.componentScriptData[scriptID].variable_uint) {
+					for (std::pair<std::string, unsigned int> data : obj.componentScriptData[scriptID].variable_uint) {
 						int x = (int)data.second;
 						ImGui::DragInt(data.first.c_str(), &x, 1, 0, 4294967295);
 						if (x < 0) { x = 0; }
 						obj.componentScriptData[scriptID].variable_uint[data.first] = (unsigned int)x;
 					}
 					//Float values
-					for each (std::pair<std::string, float> data in obj.componentScriptData[scriptID].variable_float) {
+					for (std::pair<std::string, float> data : obj.componentScriptData[scriptID].variable_float) {
 						ImGui::DragFloat(data.first.c_str(), &data.second, 0.1f);
 						obj.componentScriptData[scriptID].variable_float[data.first] = data.second;
 					}
 					//String values
-					for each (std::pair<std::string, std::string> data in obj.componentScriptData[scriptID].variable_string) {
+					for (std::pair<std::string, std::string> data : obj.componentScriptData[scriptID].variable_string) {
 						char result[1024];
 						strcpy_s(result, data.second.c_str());
 

@@ -10,7 +10,7 @@ ResourceManager::ResourceManager()
 	Shader BaseShader("src\\shaders\\vertex.vert", "src\\shaders\\fragment.frag");
 	shaders.push_back(BaseShader);
 
-	newModel("DEFAULT","src\\models\\block.obj", "b_grass_diffuse.png", "grass_specular.png");
+	newModel("DEFAULT","src\\models\\block.obj", "default_diffuse.png", "default_specular.png");
 
 	glClearColor(0.1f, 0.6f, 0.6f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -138,27 +138,34 @@ void ResourceManager::render(Scene &s, glm::vec3 player_pos, bool InGame) {
 	if (s.getObjectsCount() > 0) {
 
 		unsigned int oIndex = 0;
-		for each (Object o in s.getObjects()) {
+		for (Object o : s.getObjects()) {
 
 			unsigned int mIndex = 0;
-			for each (ModelComponent comp in o.components.getModels()) {
+			for (ModelComponent comp : o.components.getModels()) {
 				model = glm::mat4(1.0f);
-				model = glm::translate(model, comp.componentTransform.position + o.pos);
-				model = glm::rotate(model, glm::radians(comp.componentTransform.roll + o.roll), glm::vec3(1.0f, 0.0f, 0.0f)); //Z roll
 
-				model = glm::rotate(model, glm::radians(-comp.componentTransform.yaw - o.yaw), glm::vec3(0.0f, 1.0f, 0.0f)); //Y yaw
+				//Parent object transform (global).
+				model = glm::translate(model, o.pos);
+				model = glm::rotate(model, glm::radians(o.roll), { 1.0f, 0.0f, 0.0f });
+				model = glm::rotate(model, glm::radians(-o.yaw), glm::vec3(0.0f, 1.0f, 0.0f));
+				model = glm::rotate(model, glm::radians(o.pitch), { 0.0f, 0.0f, 1.0f });
+				model = glm::scale(model, o.sca);
+				//Component transformation (local).
+				model = glm::translate(model, comp.componentTransform.position);
+				model = glm::rotate(model, glm::radians(comp.componentTransform.roll), { 1.0f, 0.0f, 0.0f }); //Z roll -- o.GetForward()
+				model = glm::rotate(model, glm::radians(-comp.componentTransform.yaw), glm::vec3(0.0f, 1.0f, 0.0f)); //Y yaw
+				model = glm::rotate(model, glm::radians(comp.componentTransform.pitch), { 0.0f, 0.0f, 1.0f }); //X pitch -- o.getRight()
+				model = glm::scale(model, comp.componentTransform.scale);
 
-				model = glm::rotate(model, glm::radians(comp.componentTransform.pitch + o.pitch), glm::vec3(0.0f, 0.0f, 1.0f)); //X pitch
 
-				glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-				model = glm::scale(model, comp.componentTransform.scale * o.sca);
-
+				//Rendering model.
 				shaders[1].setM4FV("model", model);
 				comp.modelData.draw(shaders[1]);
 
 				o.components.models[mIndex] = comp;
 				mIndex++;
 			}
+			//Displaying a sphere if there is no model and editing project.
 			if (o.components.getModels().size() == 0) {
 				if (!InGame) {
 					renderModel(1, 1, 10, o.pos, {0.1f, 0.1f, 0.1f});
@@ -382,19 +389,6 @@ unsigned int ResourceManager::newModel(std::string _name, std::string obj, std::
 
 	Model model(_name, &obj[0], newMat);
 
-	//while (true) {
-	//	bool duplicate = false;
-	//	for each (Model m in models) {
-	//		if (m.id == model.id) {
-	//			model.genID();
-	//			duplicate = true;
-	//		}
-	//	}
-	//	if (!duplicate) {
-	//		break;
-	//	}
-	//}
-
 	models.push_back(model);
 	return models.size() - 1;
 }
@@ -419,6 +413,7 @@ void ResourceManager::drawBlock(Shader s,unsigned int ID, glm::vec3 pos) {
 }
 
 
+//Actors
 Object ResourceManager::getActor(std::string name, std::map<std::string, float>* debug) {
 	for each (Object a in actors) {
 		if (a.name == name) {
@@ -427,17 +422,6 @@ Object ResourceManager::getActor(std::string name, std::map<std::string, float>*
 	}
 	debug->insert(std::pair<std::string, float>("Could not find actor with name " + name + "!", 0.0f));
 
-	return Object();
-}
-
-Object ResourceManager::getActor(std::string name) {
-	for each (Object a in actors) {
-		if (a.name == name) {
-			return a;
-		}
-	}
-	std::cout << "could not find actor with name " << name << std::endl;
-	
 	return Object();
 }
 
@@ -471,26 +455,18 @@ int ResourceManager::selectedActor() {
 	return -1;
 }
 
-void ResourceManager::newActor()
+
+void ResourceManager::newActor(Object actor, std::string working_dir)
 {
-	newActor(Object());
+	newActor(actor.name, actor, working_dir);
 }
 
-void ResourceManager::newActor(std::string name)
-{
-	newActor(name, Object());
-}
-
-void ResourceManager::newActor(Object actor)
-{
-	newActor(actor.name, actor);
-}
-
-void ResourceManager::newActor(std::string name, Object actor)
+void ResourceManager::newActor(std::string name, Object actor, std::string working_dir)
 {
 	actor.name = name;
 	unsigned int count = 0;
-	for each (Object act in actors) {
+	//Generating a name for the actor.
+	for (Object act : actors) {
 		if (act.name == name) {
 			count++;
 		}
@@ -507,7 +483,34 @@ void ResourceManager::newActor(std::string name, Object actor)
 	}
 	actor.pos = glm::vec3(0.0f,0.0f,0.0f);
 	actor.deselect();
+	//Adding actor to list of current actors loaded.
 	actors.push_back(actor);
+	//Saving actor to file.
+	std::ofstream file = std::ofstream(working_dir + "Actors\\" + actor.name + ".actor", std::ios::binary | std::ios::out);
+	if (file.good()) {
+		//Using the scene class functions as these have the same purpose.
+		Scene s;
+		s.saveObject(actor, file);
+	}
+	file.close();
+}
+
+void ResourceManager::loadSavedActors(std::string working_dir) {
+	actors.clear();
+	std::string fileName;
+	Scene s;
+
+	for (auto & p : std::experimental::filesystem::directory_iterator(working_dir + "Actors\\")) {
+		//Iterates through each document and searches for .actor files.
+		fileName = p.path().string();
+		if (fileName.find(".actor") != std::string::npos) {
+			//Loads the actor from the file.
+			std::ifstream file = std::ifstream(fileName, std::ios::binary | std::ios::in);
+			if (file.good()) {
+				actors.push_back(s.loadObject(file, true));
+			}
+		}
+	}
 }
 
 void ResourceManager::setActor(unsigned int id, Object actor)

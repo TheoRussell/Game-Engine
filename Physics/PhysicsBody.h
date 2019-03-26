@@ -23,6 +23,8 @@ public:
 	float pitch = 0.0f;
 	float roll = 0.0f;
 
+	bool enabled = false;
+
 	//Mass in kg.
 	float mass = 50.0f;
 	glm::vec3 linear_velocity = glm::vec3(0.0f);

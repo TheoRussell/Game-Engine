@@ -22,13 +22,14 @@
 #include "Components\Scripts\CollisionScript.h"
 #include "Components\Scripts\PlayerController.h"
 #include "Components\Scripts\Player.h"
+#include "Components\Scripts\Bloxorz.h"
+#include "Components\Scripts\Movement.h"
 //<\@GENERATED CODE@SCRIPT IMPORT@>//
 
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 
-unsigned int timeSinceScene = 0;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -91,7 +92,7 @@ int main(void)
 	//height = 1080;
 	int count;
 	GLFWmonitor** monitors = glfwGetMonitors(&count);
-	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	GLFWmonitor* monitor = monitors[0];
 	const GLFWvidmode* video = glfwGetVideoMode(monitor);
 	width = video->width;
 	height = video->height;
@@ -170,7 +171,7 @@ int main(void)
 		glClearColor(0, 0, 0, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); //reset all of the depth planes.
 
-		engine_interface.projects(client);
+		engine_interface.ProjectsTab(client, resources);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -192,6 +193,7 @@ int main(void)
 	if (client.engineView == PRODUCT) {
 		client.WorkingDir = client.project.getActive();
 		client.loadProject();
+		resources.loadSavedActors(client.WorkingDir);
 	}
 	else {
 		//Reducing load time by loading these only if the user is in the engine rather than complete game.
@@ -230,6 +232,10 @@ int main(void)
 	physics.addScript(&script_PlayerController);
 	Player script_Player;
 	physics.addScript(&script_Player);
+	Bloxorz script_Bloxorz;
+	physics.addScript(&script_Bloxorz);
+	Movement script_Movement;
+	physics.addScript(&script_Movement);
 	//<\@GENERATED CODE@SCRIPTS@>//
 
 	int frames = 0;
@@ -283,33 +289,38 @@ int main(void)
 				InGame = client.InGame;
 				if (InGame) {
 					engine_interface.OnUpdate(physics_update, client, physics, resources);
-
-
 					physics.update(client.world, physics_update, client.project.directory);
+					engine_interface.mouseClicked = false;
+
 					audio.update(client.world);
 					if (physics.newUI != "") {
 						engine_interface.loadInterface(client.WorkingDir + "interfaces\\" + physics.newUI + ".gui", client, physics);
 						physics.newUI = "";
 					}
-					int index = 0;
-					for each (Object o in client.world.objects) {
-						bool addedActors = false;
-						for each (Actor act in o.newActors) {
-							unsigned int newObj = client.world.addObject(resources.getActor(act.name, &engine_interface.debug_messages), true);
-							client.world.objects[newObj].pos += act.pos;
-							client.world.objects[newObj].sca *= act.scale;
-							client.world.objects[newObj].roll += act.roll;
-							client.world.objects[newObj].pitch += act.pitch;
-							client.world.objects[newObj].yaw += act.yaw;
-							addedActors = true;
-						}
-						o.newActors.clear();
-						client.world.objects[index] = o;
-						index++;
-						if (addedActors) {
-							break;
+
+					//Saves processing time. Spawning new actors from scripts.
+					if (physics.newActorRequest) {
+						int index = 0;
+						for (Object o : client.world.objects) {
+							bool addedActors = false;
+							for (Actor act : o.newActors) {
+								unsigned int newObj = client.world.addObject(resources.getActor(act.name, &engine_interface.debug_messages), true);
+								client.world.objects[newObj].pos += act.pos;
+								client.world.objects[newObj].sca *= act.scale;
+								client.world.objects[newObj].roll += act.roll;
+								client.world.objects[newObj].pitch += act.pitch;
+								client.world.objects[newObj].yaw += act.yaw;
+								addedActors = true;
+							}
+							o.newActors.clear();
+							client.world.objects[index] = o;
+							index++;
+							if (addedActors) {
+								break;
+							}
 						}
 					}
+
 
 				}
 
@@ -321,113 +332,113 @@ int main(void)
 			}
 
 
-
-
-
-			if (!InGame) {
-				if (client.click_l && !client.click_r && !client.viewingCursor) {
-					Collision c;
-					c.collided = false;
-					c = physics.RayCast(client.world, client.player);
-					if (c.collided) {
-						//Successful raycast.
-						client.world.select(c.objID);
+			if (!client.closeProgram) {
+				if (!InGame) {
+					if (client.click_l && !client.click_r && !client.viewingCursor) {
+						Collision c;
+						c.collided = false;
+						c = physics.RayCast(client.world, client.player);
+						if (c.collided) {
+							//Successful raycast.
+							client.world.select(c.objID);
+						}
+						client.click_l = false;
 					}
-					client.click_l = false;
+					if (client.click_l && !client.click_r && client.viewingCursor) {
+						client.click_l = false;
+					}
+					if (client.click_r && !client.click_l && client.viewingCursor) {
+						client.click_r = false;
+					}
+
+					if (client.click_r && !client.click_l && !client.viewingCursor) {
+						client.world.deselect(client.world.getSelected());
+						client.click_r = false;
+					}
 				}
-				if (client.click_l && !client.click_r && client.viewingCursor) {
-					client.click_l = false;
+
+
+
+
+				double deltaTime = updateLag / physics_update;
+				Scene interpolatedScene = client.world.interpolate(lastScene, deltaTime);
+
+				resources.setMatrices(client.world.getCamera(InGame).camera.viewMatrix(), projection); //SHOULD USE INTERPOLATED CAMERA BUT CAUSES BUG.
+				glViewport(engine_interface.xDisplacement, height - (9 * (width - engine_interface.xDisplacement) / 16) - engine_interface.UIEy, width - engine_interface.xDisplacement, 9 * (width - engine_interface.xDisplacement) / 16);
+
+
+				if (client.engineView == PRODUCT | client.engineView == Game) {
+					resources.render(interpolatedScene, client.world.getCamera(InGame).camera.getPos() + client.world.getCamera(InGame).componentTransform.position, true);
+
 				}
-				if (client.click_r && !client.click_l && client.viewingCursor) {
-					client.click_r = false;
+				else {
+					resources.render(interpolatedScene, client.world.getCamera(InGame).camera.getPos() + client.world.getCamera(InGame).componentTransform.position, false);
 				}
 
-				if (client.click_r && !client.click_l && !client.viewingCursor) {
-					client.world.deselect(client.world.getSelected());
-					client.click_r = false;
-				}
-			}
 
-
-
-			
-			double deltaTime = updateLag / physics_update;
-			Scene interpolatedScene = client.world.interpolate(lastScene, deltaTime);
-
-			resources.setMatrices(client.world.getCamera(InGame).camera.viewMatrix(), projection); //SHOULD USE INTERPOLATED CAMERA BUT CAUSES BUG.
-			glViewport(engine_interface.xDisplacement, height - (9 * (width - engine_interface.xDisplacement) / 16) - engine_interface.UIEy, width - engine_interface.xDisplacement, 9 * (width - engine_interface.xDisplacement) / 16);
-			
-
-			if (client.engineView == PRODUCT | client.engineView == Game) {
-				resources.render(interpolatedScene, client.world.getCamera(InGame).camera.getPos() + client.world.getCamera(InGame).componentTransform.position, true);
-				
-			}
-			else {
-				resources.render(interpolatedScene, client.world.getCamera(InGame).camera.getPos() + client.world.getCamera(InGame).componentTransform.position, false);
-			}
-
-
-			if (client.viewingCollisions && client.engineView != PRODUCT) {
-				//Display collision rectangles.
-				for (unsigned int i = 0; i < client.world.getObjectsCount(); i++) {
-					Object p = client.world.getObject(i);
-					if (p.physicsBody.collides) {
-						for each (BoxCollider bc in p.physicsBody.coll_Box) {
-							resources.renderModel(1, 2, cube, p.pos + bc.position, p.sca * bc.scale, 0.0f, 0.0f, 0.0f);
+				if (client.viewingCollisions && client.engineView != PRODUCT) {
+					//Display collision rectangles.
+					for (unsigned int i = 0; i < client.world.getObjectsCount(); i++) {
+						Object p = client.world.getObject(i);
+						if (p.physicsBody.collides) {
+							for each (BoxCollider bc in p.physicsBody.coll_Box) {
+								resources.renderModel(1, 2, cube, p.pos + bc.position, p.sca * bc.scale, 0.0f, 0.0f, 0.0f);
+							}
 						}
 					}
 				}
-			}
 
 
-			
-			//display selected object using arrows and modify transformations.
-			if (client.engineView != PRODUCT && client.engineView != Game) {
-				int selected = client.world.getSelected();
-				if (selected > -1) {
-					resources.renderTransformers(1, client.world.getObject(selected), client.editMode, blueArrowID);
 
-					glm::vec3 transform_change = glm::vec3(0.0f);
-					float multiplier = 0.1f;
-					if (glfwGetKey(window, KEY_LALT) == GLFW_PRESS || glfwGetKey(window, KEY_RALT) == GLFW_PRESS) {
-						multiplier = 0.02f;
-					}
-					if (glfwGetKey(window, KEY_UP) == GLFW_PRESS) {
-						transform_change.x += multiplier;
-					}
-					if (glfwGetKey(window, KEY_DOWN) == GLFW_PRESS) {
-						transform_change.x -= multiplier;
-					}
-					if (glfwGetKey(window, KEY_PAGE_UP) == GLFW_PRESS) {
-						transform_change.y += multiplier;
-					}
-					if (glfwGetKey(window, KEY_PAGE_DOWN) == GLFW_PRESS) {
-						transform_change.y -= multiplier;
-					}
-					if (glfwGetKey(window, KEY_LEFT) == GLFW_PRESS) {
-						transform_change.z -= multiplier;
-					}
-					if (glfwGetKey(window, KEY_RIGHT) == GLFW_PRESS) {
-						transform_change.z += multiplier;
+				//display selected object using arrows and modify transformations.
+				if (client.engineView != PRODUCT && client.engineView != Game) {
+					int selected = client.world.getSelected();
+					if (selected > -1) {
+						resources.renderTransformers(1, client.world.getObject(selected), client.editMode, blueArrowID);
+
+						glm::vec3 transform_change = glm::vec3(0.0f);
+						float multiplier = 0.1f;
+						if (glfwGetKey(window, KEY_LALT) == GLFW_PRESS || glfwGetKey(window, KEY_RALT) == GLFW_PRESS) {
+							multiplier = 0.02f;
+						}
+						if (glfwGetKey(window, KEY_UP) == GLFW_PRESS) {
+							transform_change.x += multiplier;
+						}
+						if (glfwGetKey(window, KEY_DOWN) == GLFW_PRESS) {
+							transform_change.x -= multiplier;
+						}
+						if (glfwGetKey(window, KEY_PAGE_UP) == GLFW_PRESS) {
+							transform_change.y += multiplier;
+						}
+						if (glfwGetKey(window, KEY_PAGE_DOWN) == GLFW_PRESS) {
+							transform_change.y -= multiplier;
+						}
+						if (glfwGetKey(window, KEY_LEFT) == GLFW_PRESS) {
+							transform_change.z -= multiplier;
+						}
+						if (glfwGetKey(window, KEY_RIGHT) == GLFW_PRESS) {
+							transform_change.z += multiplier;
+						}
+
+						if (client.editMode == MOVE) {
+							client.world.objects[selected].pos += transform_change;
+						}
+						else if (client.editMode == SCALE) {
+							client.world.objects[selected].sca += transform_change;
+						}
+						else if (client.editMode == ROTATE) {
+							client.world.objects[selected].pitch -= transform_change.x * 10;
+							client.world.objects[selected].yaw += transform_change.y * 10;
+							client.world.objects[selected].roll += transform_change.z * 10;
+						}
+
 					}
 
-					if (client.editMode == MOVE) {
-						client.world.objects[selected].pos += transform_change;
-					}
-					else if (client.editMode == SCALE) {
-						client.world.objects[selected].sca += transform_change;
-					}
-					else if (client.editMode == ROTATE) {
-						client.world.objects[selected].pitch -= transform_change.x * 10;
-						client.world.objects[selected].yaw += transform_change.y * 10;
-						client.world.objects[selected].roll += transform_change.z * 10;
-					}
 
 				}
-
-
 			}
 		}
+
 
 
 
@@ -438,13 +449,6 @@ int main(void)
 			timer++;
 			std::cout << "FPS:" << frames << std::endl;
 			frames = 0;
-		}
-
-		timeSinceScene++;
-		if (timeSinceScene == 30) {
-			//audio.update(client.world);
-			timeSinceScene = 0;
-
 		}
 
 		engine_interface.update(InGame, client, physics, resources, scripts);
@@ -465,6 +469,10 @@ int main(void)
 			}
 		}
 
+
+		if (lastScene.name != client.world.name) {
+			physics.OnStart(client.world, window);
+		}
 
 
 		/* Swap front and back buffers */

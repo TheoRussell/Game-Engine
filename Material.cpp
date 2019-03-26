@@ -9,7 +9,7 @@ Material::Material()
 	diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
 
 	texture_paths.push_back("default_diffuse.png");
-	texture_paths.push_back("grass_specular.png");
+	texture_paths.push_back("default_specular.png");
 	name = "DEFAULT MESH";
 	parent_mtl = "DEFAULT_MTL.mtl";
 }

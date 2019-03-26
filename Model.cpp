@@ -348,8 +348,8 @@ void Model::getMaterials(std::string &path, std::vector<Material> &materials) {
 		if (f_line.find("newmtl ") != std::string::npos) {
 			//Save previous material.
 			if (textO.size() == 0) {
-				textO.push_back("grass_diffuse.png"); //Default texture.
-				textO.push_back("grass_specular.png"); //Default texture.
+				textO.push_back("default_diffuse.png"); //Default texture.
+				textO.push_back("default_specular.png"); //Default texture.
 			}
 			mat_current.texture_paths = textO;
 			textO.clear();
@@ -365,8 +365,8 @@ void Model::getMaterials(std::string &path, std::vector<Material> &materials) {
 			//Texture paths.
 			std::string texturePath = f_line.replace(0, 7, "");
 			if (texturePath == ".") {
-				textO.push_back("grass_diffuse.png"); //Default texture.
-				textO.push_back("grass_specular.png"); //Default texture.
+				textO.push_back("default_diffuse.png"); //Default texture.
+				textO.push_back("default_specular.png"); //Default texture.
 			}
 			else {
 				textO.push_back(texturePath);
@@ -398,8 +398,8 @@ void Model::getMaterials(std::string &path, std::vector<Material> &materials) {
 	}
 
 	if (textO.size() == 0) {
-		textO.push_back("grass_diffuse.png"); //Default texture.
-		textO.push_back("grass_specular.png"); //Default texture.
+		textO.push_back("default_diffuse.png"); //Default texture.
+		textO.push_back("default_specular.png"); //Default texture.
 	}
 	mat_current.texture_paths = textO;
 	mats.push_back(mat_current); //Adds the current material to the other materials in the list.

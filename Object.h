@@ -54,7 +54,8 @@ public:
 	void deleteScript(std::string ID);
 	float distanceTo(glm::vec3 position);
 	glm::mat4 getTransform();
-	glm::vec3 getFront();
+	glm::vec3 GetForward();
+	glm::vec3 getRight();
 	glm::vec3 getPos();
 	void rotate(std::string axis, float degree);
 	void move(glm::vec3 amount);
@@ -71,6 +72,7 @@ public:
 	float roll;
 	PhysicsBody physicsBody;
 	std::string name = "obj";
+
 
 	std::vector<std::string> componentScriptIDs;
 	std::map<std::string, DataStorage> componentScriptData;

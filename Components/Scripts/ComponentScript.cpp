@@ -75,10 +75,16 @@ bool ComponentScript::getExit() {
 
 void ComponentScript::SetCursorVisible(bool val) {
 	if (val) {
-		int w, h;
-		glfwGetWindowSize(window, &w, &h);
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-		glfwSetCursorPos(window, w/2, h/2);
+		try {
+			int w, h;
+			glfwGetWindowSize(window, &w, &h);
+			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+			glfwSetCursorPos(window, w / 2, h / 2);
+		}
+		catch (std::exception ex) {
+			std::cout << ex.what() << std::endl;
+		}
+
 	}
 	else {
 		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);

@@ -1,6 +1,8 @@
 #pragma once
 #include "Scene.h"
 
+
+//Ie, if the user is releasing the game, change the engine view variable into 5 = Product.
 #define BUILD_MODE 0
 #ifdef BUILD_MODE_PRODUCT
 	#define BUILD_MODE 5

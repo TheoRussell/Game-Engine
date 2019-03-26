@@ -72,8 +72,15 @@ CamComponent Scene::getCamera(bool inGame) {
 	return getCamera();
 }
 
-void Scene::deleteScene() {
+void Scene::deleteScene(std::string path) {
 	//DELETE THE SCENE FROM FILES.
+	try {
+		std::remove(path.c_str());
+		scene_deleted = true;
+	}
+	catch (std::exception ex) {
+		std::cout << "Could not delete world, " << ex.what() << std::endl;
+	}
 }
 
 bool Scene::loadBinary(std::string WorkingDir) {
@@ -92,154 +99,12 @@ bool Scene::loadBinary(std::string WorkingDir) {
 			d_ambient = BinaryFiles::getVec3(file);
 			d_diffuse = BinaryFiles::getVec3(file);
 			d_specular = BinaryFiles::getVec3(file);
-			///Reading script data -- should be in project file loading.
-			//int scriptQuant = BinaryFiles::getInt(file);
-			//if (scriptQuant > 0) {
-			//	for (int scr = 0; scr < scriptQuant; scr++) {
-			//		std::string scriptName = BinaryFiles::getString(file);
-			//		for each (ComponentScript* s in scripts) {
-			//			if (s->getName() == scriptName) {
-			//				int lblRefQuant = BinaryFiles::getInt(file);
-			//				if (lblRefQuant > 0) {
-			//					for (int lbl_i = 0; lbl_i < lblRefQuant; lbl_i++) {
-			//						std::string refName = BinaryFiles::getString(file);
-			//						std::string refID = BinaryFiles::getString(file);
-			//						if (refID != "-1") {
-			//							//The script did have a reference to a label item when saved.
-
-			//						}
-			//					}
-			//				}
-			//			}
-			//		}
-			//	}
-			//}
 
 			BINARYWrite bw = BINARY_Label;
 			while (bw != BINARY_END) {
 				bw = BinaryFiles::getBINARYType(file);
 				if (bw == BINARY_Object) {
-					Object obj;
-					obj.name = BinaryFiles::getString(file);
-					obj.pos = BinaryFiles::getVec3(file);
-					obj.sca = BinaryFiles::getVec3(file);
-					obj.roll = BinaryFiles::getFloat(file);
-					obj.pitch = BinaryFiles::getFloat(file);
-					obj.yaw = BinaryFiles::getFloat(file);
-
-					obj.physicsBody.collides = BinaryFiles::getBool(file);
-					obj.physicsBody.doesGravity = BinaryFiles::getBool(file);
-					
-					obj.physicsBody.mass = BinaryFiles::getFloat(file);
-
-					obj.physicsBody.position = BinaryFiles::getVec3(file);
-					obj.physicsBody.scale = BinaryFiles::getVec3(file);
-					obj.physicsBody.roll = BinaryFiles::getFloat(file);
-					obj.physicsBody.pitch = BinaryFiles::getFloat(file);
-					obj.physicsBody.yaw = BinaryFiles::getFloat(file);
-
-					while (bw != BINARY_EOO) {
-						bw = BinaryFiles::getBINARYType(file);
-						if (bw < BINARY_Physics) {
-							//Error handling - this shouldn't occur.
-							std::cout << "The save file is corrupt! Sorry." << std::endl;
-							file.close();
-							return false;
-						}
-
-						if (bw == BINARY_Physics) {
-							BoxCollider bc;
-							bc.position = BinaryFiles::getVec3(file);
-							bc.scale = BinaryFiles::getVec3(file);
-							bc.roll = BinaryFiles::getFloat(file);
-							bc.pitch = BinaryFiles::getFloat(file);
-							bc.yaw = BinaryFiles::getFloat(file);
-
-							int cornersCount = BinaryFiles::getInt(file);
-							if (cornersCount > 0) {
-								for (int i = 0; i < cornersCount; i++) {
-									bc.corners.push_back(BinaryFiles::getVec3(file));
-								}
-							}
-							obj.physicsBody.coll_Box.push_back(bc);
-						}
-						if (bw == BINARY_Camera) {
-							CamComponent cc;
-							cc.componentTransform.name = BinaryFiles::getString(file);
-							cc.componentTransform.position = BinaryFiles::getVec3(file);
-							cc.componentTransform.roll = BinaryFiles::getFloat(file);
-							cc.componentTransform.pitch = BinaryFiles::getFloat(file);
-							cc.componentTransform.yaw = BinaryFiles::getFloat(file);
-							cc.camera.setLookSensitivity(BinaryFiles::getFloat(file));
-							cc.camera.setMoveSensitivity(BinaryFiles::getFloat(file));
-							cc.camera.locked = BinaryFiles::getBool(file);
-							obj.components.cameras.push_back(cc);
-						}
-						if (bw == BINARY_PLight) {
-							PLightComponent pl;
-							pl.componentTransform.name = BinaryFiles::getString(file);
-							pl.componentTransform.position = BinaryFiles::getVec3(file);
-							pl.light.colour_amb = BinaryFiles::getVec3(file);
-							pl.light.colour_diff = BinaryFiles::getVec3(file);
-							pl.light.colour_spec = BinaryFiles::getVec3(file);
-							pl.light.linear = BinaryFiles::getFloat(file);
-							pl.light.quadratic = BinaryFiles::getFloat(file);
-							pl.light.active = BinaryFiles::getBool(file);
-							obj.components.pointLights.push_back(pl);
-						}
-						if (bw == BINARY_Model) {
-							ModelComponent mc;
-							mc.componentTransform.name = BinaryFiles::getString(file);
-							mc.componentTransform.position = BinaryFiles::getVec3(file);
-							mc.componentTransform.scale = BinaryFiles::getVec3(file);
-							mc.componentTransform.roll = BinaryFiles::getFloat(file);
-							mc.componentTransform.pitch = BinaryFiles::getFloat(file);
-							mc.componentTransform.yaw = BinaryFiles::getFloat(file);
-
-							mc.modelData.meshes.clear();
-							//Adding meshes.
-							int meshCount = BinaryFiles::getInt(file);
-							if (meshCount > 0) {
-								for (int meshI = 0; meshI < meshCount; meshI++) {
-									Mesh mesh;
-									mesh.name = BinaryFiles::getString(file);
-									mc.modelData.meshes.push_back(mesh);
-								}
-							}
-							//Adding material to mesh
-							std::vector<Material> mats;
-							int matCount = BinaryFiles::getInt(file);
-							if (matCount > 0) {
-								for (int matI = 0; matI < matCount; matI++) {
-									Material material;
-									material.ambient = BinaryFiles::getVec3(file);
-									material.diffuse = BinaryFiles::getVec3(file);
-									material.specular = BinaryFiles::getVec3(file);
-									material.name = BinaryFiles::getString(file);
-
-									material.texture_paths.clear();
-									//Adding textures to material.
-									int textCount = BinaryFiles::getInt(file);
-									if (textCount > 0) {
-										for (int i = 0; i < textCount; i++) {
-											std::string texturePath = BinaryFiles::getString(file);
-											material.texture_paths.push_back(texturePath);
-										}
-									}
-									mats.push_back(material);
-								}
-							}
-							mc.modelData.regenerateMeshes();
-							mc.modelData.regenerateMats(mats);
-
-							obj.components.models.push_back(mc);
-						}
-						if (bw == BINARY_Script) {
-							obj.componentScriptIDs.push_back(BinaryFiles::getString(file));
-						}
-
-					}
-					objects.push_back(obj);
+					objects.push_back(loadObject(file, false));
 				}
 			}
 			file.close();
@@ -247,10 +112,144 @@ bool Scene::loadBinary(std::string WorkingDir) {
 		return true;
 	}
 	catch (std::exception ex) {
-		std::cout << "LOAD FILE ERROR: " << ex.what() << std::endl;
+		std::cout << "The save file is corrupt! Sorry: " << ex.what() << std::endl;
+		return false;
 	}
 
 	return false;
+}
+
+Object Scene::loadObject(std::ifstream &file, bool readType) {
+	BINARYWrite bw;
+	if (readType) {
+		bw = BinaryFiles::getBINARYType(file);
+	}
+	else {
+		bw = BINARY_Object;
+	}
+	
+	Object obj;
+	obj.name = BinaryFiles::getString(file);
+	obj.pos = BinaryFiles::getVec3(file);
+	obj.sca = BinaryFiles::getVec3(file);
+	obj.roll = BinaryFiles::getFloat(file);
+	obj.pitch = BinaryFiles::getFloat(file);
+	obj.yaw = BinaryFiles::getFloat(file);
+
+	obj.physicsBody.enabled = BinaryFiles::getBool(file);
+	obj.physicsBody.collides = BinaryFiles::getBool(file);
+	obj.physicsBody.doesGravity = BinaryFiles::getBool(file);
+
+	obj.physicsBody.mass = BinaryFiles::getFloat(file);
+
+	obj.physicsBody.position = BinaryFiles::getVec3(file);
+	obj.physicsBody.scale = BinaryFiles::getVec3(file);
+	obj.physicsBody.roll = BinaryFiles::getFloat(file);
+	obj.physicsBody.pitch = BinaryFiles::getFloat(file);
+	obj.physicsBody.yaw = BinaryFiles::getFloat(file);
+
+	while (bw != BINARY_EOO) {
+		bw = BinaryFiles::getBINARYType(file);
+		if (bw < BINARY_Physics) {
+			//Error handling - this shouldn't occur.
+			file.close();
+			throw std::exception("File does not follow file protocols");
+		}
+
+		if (bw == BINARY_Physics) {
+			BoxCollider bc;
+			bc.position = BinaryFiles::getVec3(file);
+			bc.scale = BinaryFiles::getVec3(file);
+			bc.roll = BinaryFiles::getFloat(file);
+			bc.pitch = BinaryFiles::getFloat(file);
+			bc.yaw = BinaryFiles::getFloat(file);
+
+			int cornersCount = BinaryFiles::getInt(file);
+			if (cornersCount > 0) {
+				for (int i = 0; i < cornersCount; i++) {
+					bc.corners.push_back(BinaryFiles::getVec3(file));
+				}
+			}
+			obj.physicsBody.coll_Box.push_back(bc);
+		}
+		if (bw == BINARY_Camera) {
+			CamComponent cc;
+			cc.componentTransform.name = BinaryFiles::getString(file);
+			cc.componentTransform.position = BinaryFiles::getVec3(file);
+			cc.componentTransform.roll = BinaryFiles::getFloat(file);
+			cc.componentTransform.pitch = BinaryFiles::getFloat(file);
+			cc.componentTransform.yaw = BinaryFiles::getFloat(file);
+			cc.camera.setLookSensitivity(BinaryFiles::getFloat(file));
+			cc.camera.setMoveSensitivity(BinaryFiles::getFloat(file));
+			cc.camera.locked = BinaryFiles::getBool(file);
+			obj.components.cameras.push_back(cc);
+		}
+		if (bw == BINARY_PLight) {
+			PLightComponent pl;
+			pl.componentTransform.name = BinaryFiles::getString(file);
+			pl.componentTransform.position = BinaryFiles::getVec3(file);
+			pl.light.colour_amb = BinaryFiles::getVec3(file);
+			pl.light.colour_diff = BinaryFiles::getVec3(file);
+			pl.light.colour_spec = BinaryFiles::getVec3(file);
+			pl.light.linear = BinaryFiles::getFloat(file);
+			pl.light.quadratic = BinaryFiles::getFloat(file);
+			pl.light.active = BinaryFiles::getBool(file);
+			obj.components.pointLights.push_back(pl);
+		}
+		if (bw == BINARY_Model) {
+			ModelComponent mc;
+			mc.componentTransform.name = BinaryFiles::getString(file);
+			mc.componentTransform.position = BinaryFiles::getVec3(file);
+			mc.componentTransform.scale = BinaryFiles::getVec3(file);
+			mc.componentTransform.roll = BinaryFiles::getFloat(file);
+			mc.componentTransform.pitch = BinaryFiles::getFloat(file);
+			mc.componentTransform.yaw = BinaryFiles::getFloat(file);
+
+			mc.modelData.meshes.clear();
+			//Adding meshes.
+			int meshCount = BinaryFiles::getInt(file);
+			if (meshCount > 0) {
+				for (int meshI = 0; meshI < meshCount; meshI++) {
+					Mesh mesh;
+					mesh.name = BinaryFiles::getString(file);
+					mc.modelData.meshes.push_back(mesh);
+				}
+			}
+			//Adding material to mesh
+			std::vector<Material> mats;
+			int matCount = BinaryFiles::getInt(file);
+			if (matCount > 0) {
+				for (int matI = 0; matI < matCount; matI++) {
+					Material material;
+					material.ambient = BinaryFiles::getVec3(file);
+					material.diffuse = BinaryFiles::getVec3(file);
+					material.specular = BinaryFiles::getVec3(file);
+					material.name = BinaryFiles::getString(file);
+
+					material.texture_paths.clear();
+					//Adding textures to material.
+					int textCount = BinaryFiles::getInt(file);
+					if (textCount > 0) {
+						for (int i = 0; i < textCount; i++) {
+							std::string texturePath = BinaryFiles::getString(file);
+							material.texture_paths.push_back(texturePath);
+						}
+					}
+					mats.push_back(material);
+				}
+			}
+			mc.modelData.regenerateMeshes();
+			mc.modelData.regenerateMats(mats);
+
+			obj.components.models.push_back(mc);
+		}
+		if (bw == BINARY_Script) {
+			obj.addScript(BinaryFiles::getString(file));
+		}
+
+	}
+
+	return obj;
 }
 
 bool Scene::saveBinary(std::string WorkingDir) {
@@ -267,157 +266,10 @@ bool Scene::saveBinary(std::string WorkingDir) {
 			BinaryFiles::writeVec3(file, d_diffuse);
 			BinaryFiles::writeVec3(file, d_specular);
 
-			///The following code should be used in saving the script data in the projects file, rather than the scene file.
-			//int scriptQuant = scripts.size();
-			//BinaryFiles::writeInt(file, scriptQuant);
-			//for each (ComponentScript* s in scripts) {
-			//	std::string scriptName = s->getName();
-			//	BinaryFiles::writeString(file, scriptName);
-
-			//	
-			//	//Saving the interface references for scripts.
-			//	if (s->getLablePointers() != nullptr) {
-			//		int lblRefs = s->getLablePointers()->size();
-			//		BinaryFiles::writeInt(file, lblRefs);
-			//		for each (std::pair<std::string, UILabel*> lbl in *s->getLablePointers()) {
-			//			BinaryFiles::writeString(file, lbl.first);
-			//			if (lbl.second != nullptr) {
-			//				BinaryFiles::writeString(file, lbl.second->id);
-			//			}
-			//			else {
-			//				std::string backUpID = "-1";
-			//				BinaryFiles::writeString(file, backUpID);
-			//			}
-
-			//		}
-			//	}
-			//	else {
-			//		BinaryFiles::writeInt(file, zero);
-			//	}
-
-			//	if (s->getPBarPointers() != nullptr) {
-			//		int pbarRefs = s->getPBarPointers()->size();
-			//		BinaryFiles::writeInt(file, pbarRefs);
-			//		for each (std::pair<std::string, UIPercentBar*> pbar in *s->getPBarPointers()) {
-			//			BinaryFiles::writeString(file, pbar.first);
-			//			if (pbar.second != nullptr) {
-			//				BinaryFiles::writeString(file, pbar.second->id);
-			//			}
-			//			else {
-			//				std::string backUpID = "-1";
-			//				BinaryFiles::writeString(file, backUpID);
-			//			}
-			//		}
-			//	}
-			//	else {
-			//		BinaryFiles::writeInt(file, zero);
-			//	}
-			//}
-
 			//Objects
 			BINARYWrite bw = BINARY_Object;
-			for each (Object obj in objects) {
-				bw = BINARY_Object;
-				BinaryFiles::writeBINARYType(file, bw);
-				BinaryFiles::writeString(file, obj.name);
-				BinaryFiles::writeVec3(file, obj.pos);
-				BinaryFiles::writeVec3(file, obj.sca);
-				BinaryFiles::writeFloat(file, obj.roll);
-				BinaryFiles::writeFloat(file, obj.pitch);
-				BinaryFiles::writeFloat(file, obj.yaw);
-
-				//Physics of object.
-				BinaryFiles::writeBool(file, obj.physicsBody.collides);
-				BinaryFiles::writeBool(file, obj.physicsBody.doesGravity);
-				BinaryFiles::writeFloat(file, obj.physicsBody.mass);
-				BinaryFiles::writeVec3(file, obj.physicsBody.position);
-				BinaryFiles::writeVec3(file, obj.physicsBody.scale);
-				BinaryFiles::writeFloat(file, obj.physicsBody.roll);
-				BinaryFiles::writeFloat(file, obj.physicsBody.pitch);
-				BinaryFiles::writeFloat(file, obj.physicsBody.yaw);
-				for each (BoxCollider bc in obj.physicsBody.coll_Box) {
-					bw = BINARY_Physics;
-					BinaryFiles::writeBINARYType(file, bw);
-					BinaryFiles::writeVec3(file, bc.position);
-					BinaryFiles::writeVec3(file, bc.scale);
-					BinaryFiles::writeFloat(file, bc.roll);
-					BinaryFiles::writeFloat(file, bc.pitch);
-					BinaryFiles::writeFloat(file, bc.yaw);
-
-					int cornerQuant = bc.corners.size();
-					BinaryFiles::writeInt(file, cornerQuant);
-					for each (glm::vec3 corner in bc.corners) {
-						BinaryFiles::writeVec3(file, corner);
-					}
-				}
-				//Components
-				for each (CamComponent cc in obj.components.cameras) {
-					bw = BINARY_Camera;
-					BinaryFiles::writeBINARYType(file, bw);
-					BinaryFiles::writeString(file, cc.componentTransform.name);
-					BinaryFiles::writeVec3(file, cc.componentTransform.position);
-					BinaryFiles::writeFloat(file, cc.componentTransform.roll);
-					BinaryFiles::writeFloat(file, cc.componentTransform.pitch);
-					BinaryFiles::writeFloat(file, cc.componentTransform.yaw);
-					float lookSpeed = cc.camera.getLookSensitivity();
-					float moveSpeed = cc.camera.getMoveSensitivity();
-					BinaryFiles::writeFloat(file, lookSpeed);
-					BinaryFiles::writeFloat(file, moveSpeed);
-					BinaryFiles::writeBool(file, cc.camera.locked);
-
-				}
-				for each (PLightComponent pl in obj.components.pointLights) {
-					bw = BINARY_PLight;
-					BinaryFiles::writeBINARYType(file, bw);
-					BinaryFiles::writeString(file, pl.componentTransform.name);
-					BinaryFiles::writeVec3(file, pl.componentTransform.position);
-					BinaryFiles::writeVec3(file, pl.light.colour_amb);
-					BinaryFiles::writeVec3(file, pl.light.colour_diff);
-					BinaryFiles::writeVec3(file, pl.light.colour_spec);
-					BinaryFiles::writeFloat(file, pl.light.linear);
-					BinaryFiles::writeFloat(file, pl.light.quadratic);
-					BinaryFiles::writeBool(file, pl.light.active);
-				}
-				for each (ModelComponent mc in obj.components.models) {
-					bw = BINARY_Model;
-					BinaryFiles::writeBINARYType(file, bw);
-					BinaryFiles::writeString(file, mc.componentTransform.name);
-					BinaryFiles::writeVec3(file, mc.componentTransform.position);
-					BinaryFiles::writeVec3(file, mc.componentTransform.scale);
-					BinaryFiles::writeFloat(file, mc.componentTransform.roll);
-					BinaryFiles::writeFloat(file, mc.componentTransform.pitch);
-					BinaryFiles::writeFloat(file, mc.componentTransform.yaw);
-					//Meshes
-					int meshCount = mc.modelData.meshes.size();
-					BinaryFiles::writeInt(file, meshCount);
-					for each (Mesh mesh in mc.modelData.meshes) {
-						BinaryFiles::writeString(file, mesh.name);
-					}
-
-					//Materials
-					int matCount = mc.modelData.materials.size();
-					BinaryFiles::writeInt(file, matCount);
-					for each (Material mat in mc.modelData.materials) {
-						BinaryFiles::writeVec3(file, mat.ambient);
-						BinaryFiles::writeVec3(file, mat.diffuse);
-						BinaryFiles::writeVec3(file, mat.specular);
-						BinaryFiles::writeString(file, mat.name);
-						//Textures
-						int textureCount = mat.texture_paths.size();
-						BinaryFiles::writeInt(file, textureCount);
-						for each (std::string tPath in mat.texture_paths) {
-							BinaryFiles::writeString(file, tPath);
-						}
-					}
-				}
-				for (std::string scriptID : obj.componentScriptIDs) {
-					bw = BINARY_Script;
-					BinaryFiles::writeBINARYType(file, bw);
-					BinaryFiles::writeString(file, scriptID);
-				}
-
-				bw = BINARY_EOO;
-				BinaryFiles::writeBINARYType(file, bw);
+			for (Object obj : objects) {
+				saveObject(obj, file);
 			}
 
 			//End of file.
@@ -433,6 +285,112 @@ bool Scene::saveBinary(std::string WorkingDir) {
 		return false;
 	}
 }
+
+void Scene::saveObject(Object obj, std::ofstream &file) {
+	BINARYWrite bw = BINARY_Object;
+	BinaryFiles::writeBINARYType(file, bw);
+	BinaryFiles::writeString(file, obj.name);
+	BinaryFiles::writeVec3(file, obj.pos);
+	BinaryFiles::writeVec3(file, obj.sca);
+	BinaryFiles::writeFloat(file, obj.roll);
+	BinaryFiles::writeFloat(file, obj.pitch);
+	BinaryFiles::writeFloat(file, obj.yaw);
+
+	//Physics of object.
+	BinaryFiles::writeBool(file, obj.physicsBody.enabled);
+	BinaryFiles::writeBool(file, obj.physicsBody.collides);
+	BinaryFiles::writeBool(file, obj.physicsBody.doesGravity);
+	BinaryFiles::writeFloat(file, obj.physicsBody.mass);
+	BinaryFiles::writeVec3(file, obj.physicsBody.position);
+	BinaryFiles::writeVec3(file, obj.physicsBody.scale);
+	BinaryFiles::writeFloat(file, obj.physicsBody.roll);
+	BinaryFiles::writeFloat(file, obj.physicsBody.pitch);
+	BinaryFiles::writeFloat(file, obj.physicsBody.yaw);
+	for each (BoxCollider bc in obj.physicsBody.coll_Box) {
+		bw = BINARY_Physics;
+		BinaryFiles::writeBINARYType(file, bw);
+		BinaryFiles::writeVec3(file, bc.position);
+		BinaryFiles::writeVec3(file, bc.scale);
+		BinaryFiles::writeFloat(file, bc.roll);
+		BinaryFiles::writeFloat(file, bc.pitch);
+		BinaryFiles::writeFloat(file, bc.yaw);
+
+		int cornerQuant = bc.corners.size();
+		BinaryFiles::writeInt(file, cornerQuant);
+		for each (glm::vec3 corner in bc.corners) {
+			BinaryFiles::writeVec3(file, corner);
+		}
+	}
+	//Components
+	for each (CamComponent cc in obj.components.cameras) {
+		bw = BINARY_Camera;
+		BinaryFiles::writeBINARYType(file, bw);
+		BinaryFiles::writeString(file, cc.componentTransform.name);
+		BinaryFiles::writeVec3(file, cc.componentTransform.position);
+		BinaryFiles::writeFloat(file, cc.componentTransform.roll);
+		BinaryFiles::writeFloat(file, cc.componentTransform.pitch);
+		BinaryFiles::writeFloat(file, cc.componentTransform.yaw);
+		float lookSpeed = cc.camera.getLookSensitivity();
+		float moveSpeed = cc.camera.getMoveSensitivity();
+		BinaryFiles::writeFloat(file, lookSpeed);
+		BinaryFiles::writeFloat(file, moveSpeed);
+		BinaryFiles::writeBool(file, cc.camera.locked);
+
+	}
+	for each (PLightComponent pl in obj.components.pointLights) {
+		bw = BINARY_PLight;
+		BinaryFiles::writeBINARYType(file, bw);
+		BinaryFiles::writeString(file, pl.componentTransform.name);
+		BinaryFiles::writeVec3(file, pl.componentTransform.position);
+		BinaryFiles::writeVec3(file, pl.light.colour_amb);
+		BinaryFiles::writeVec3(file, pl.light.colour_diff);
+		BinaryFiles::writeVec3(file, pl.light.colour_spec);
+		BinaryFiles::writeFloat(file, pl.light.linear);
+		BinaryFiles::writeFloat(file, pl.light.quadratic);
+		BinaryFiles::writeBool(file, pl.light.active);
+	}
+	for each (ModelComponent mc in obj.components.models) {
+		bw = BINARY_Model;
+		BinaryFiles::writeBINARYType(file, bw);
+		BinaryFiles::writeString(file, mc.componentTransform.name);
+		BinaryFiles::writeVec3(file, mc.componentTransform.position);
+		BinaryFiles::writeVec3(file, mc.componentTransform.scale);
+		BinaryFiles::writeFloat(file, mc.componentTransform.roll);
+		BinaryFiles::writeFloat(file, mc.componentTransform.pitch);
+		BinaryFiles::writeFloat(file, mc.componentTransform.yaw);
+		//Meshes
+		int meshCount = mc.modelData.meshes.size();
+		BinaryFiles::writeInt(file, meshCount);
+		for each (Mesh mesh in mc.modelData.meshes) {
+			BinaryFiles::writeString(file, mesh.name);
+		}
+
+		//Materials
+		int matCount = mc.modelData.materials.size();
+		BinaryFiles::writeInt(file, matCount);
+		for each (Material mat in mc.modelData.materials) {
+			BinaryFiles::writeVec3(file, mat.ambient);
+			BinaryFiles::writeVec3(file, mat.diffuse);
+			BinaryFiles::writeVec3(file, mat.specular);
+			BinaryFiles::writeString(file, mat.name);
+			//Textures
+			int textureCount = mat.texture_paths.size();
+			BinaryFiles::writeInt(file, textureCount);
+			for each (std::string tPath in mat.texture_paths) {
+				BinaryFiles::writeString(file, tPath);
+			}
+		}
+	}
+	for (std::string scriptID : obj.componentScriptIDs) {
+		bw = BINARY_Script;
+		BinaryFiles::writeBINARYType(file, bw);
+		BinaryFiles::writeString(file, scriptID);
+	}
+
+	bw = BINARY_EOO;
+	BinaryFiles::writeBINARYType(file, bw);
+}
+
 
 int Scene::getSelected() {
 	unsigned int index = 0;
@@ -456,22 +414,26 @@ unsigned int Scene::getObjectsCount() {
 }
 
 Object& Scene::getObject(unsigned int id) {
-	return objects[id];
+	if (objects.size() > 0) {
+		return objects[id];
+	}
 }
 
 bool Scene::deleteObject(unsigned int id) {
 	try {
-		if (id < objects.size()) {
-			for (unsigned int camID = 0; camID < objects[id].components.cameras.size(); camID++) {
-				CamComponent cam = objects[id].components.cameras[camID];
-				if (cam.camera.enabled && cachedGame && id == cachedGameCam.componentTransform.objID) {
-					cachedGame = false;
+		if (objects.size() > 0) {
+			if (id < objects.size()) {
+				for (unsigned int camID = 0; camID < objects[id].components.cameras.size(); camID++) {
+					CamComponent cam = objects[id].components.cameras[camID];
+					if (cam.camera.enabled && cachedGame && id == cachedGameCam.componentTransform.objID) {
+						cachedGame = false;
+					}
 				}
+				objects.erase(objects.begin() + id);
+				return true;
 			}
-			objects.erase(objects.begin() + id);
-			std::cout << objects[objects.size()-1].name << std::endl;
-			return true;
 		}
+		
 		return false;
 	}
 	catch (std::exception ex) {

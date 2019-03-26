@@ -59,7 +59,7 @@ void AudioEngine::update(Scene &scene) {
 	Object o = scene.getObject(scene.getCamera(true).componentTransform.objID);
 
 	setListenerPos(o.pos.x, o.pos.y, o.pos.z);
-	glm::vec3 forward = o.getFront();
+	glm::vec3 forward = o.GetForward();
 	ALfloat listenerOri[] = { forward.x,forward.y,forward.z, 0.0f, 1.0f, 0.0f };
 	alListenerfv(AL_ORIENTATION, listenerOri);
 

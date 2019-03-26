@@ -41,16 +41,13 @@ public:
 
 	Object getActor(std::string name, std::map<std::string, float>* debug);
 
-	Object getActor(std::string name);
-
 	std::vector<Object> getActors();
 
 	void destroyActor(std::string name);
 	int selectedActor();
-	void newActor();
-	void newActor(std::string name);
-	void newActor(Object actor);
-	void newActor(std::string name, Object actor);
+	void newActor(Object actor, std::string working_dir);
+	void newActor(std::string name, Object actor, std::string working_dir);
+	void loadSavedActors(std::string working_dir);
 	void setActor(unsigned int id, Object actor);
 
 private:

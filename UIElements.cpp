@@ -52,6 +52,7 @@ bool UIElements::loadUI(std::ifstream &input) {
 				if (writeType == BINARY_Label) {
 					//Loading label element.
 					UILabel lbl;
+					lbl.uiH = uiHeight;
 					lbl.Load(input);
 					labels.push_back(lbl);
 				}
@@ -113,7 +114,7 @@ std::string UIElements::intToChar(int v) {
 }
 
 std::string UIElements::genID() {
-	srand(rand());
+	srand(ImGui::GetTime());
 	std::string id = "";
 
 	bool same = true;
@@ -127,6 +128,7 @@ std::string UIElements::genID() {
 		for (InterfaceItem* item : Interface_Items) {
 			if (item->GetID() == id) {
 				same = true;
+				break;
 			}
 		}
 		
@@ -165,6 +167,15 @@ void UIElements::GeneratePointers() {
 	for (int element = 0; element < polygons.size(); element++) {
 		Interface_Items.push_back(&polygons[element]);
 	}
+}
+
+InterfaceItem* UIElements::GetItemWithID(std::string id) {
+	for (InterfaceItem* item : Interface_Items) {
+		if (item->GetID() == id) {
+			return item;
+		}
+	}
+	return nullptr;
 }
 
 

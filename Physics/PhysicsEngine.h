@@ -33,6 +33,8 @@ public:
 	bool exitGame = false;
 
 
+
+	bool newActorRequest = false;
 	std::string newUI = "";
 private:
 

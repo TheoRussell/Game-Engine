@@ -41,10 +41,11 @@ public:
 	void saveInterface(ClientHandler & client);
 
 	void debug_write(std::string msg);
-	void projects(ClientHandler & client);
+	void ProjectsTab(ClientHandler & client, ResourceManager & res);
 	void UIEitem(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
-	bool copyUI();
-	void pasteUI();
+	void DeleteItemUI(InterfaceItem * item, unsigned int index);
+	bool CopyItemUI();
+	void PasteItemUI();
 	void pointToScreen(glm::vec2 & pos, int width, int height);
 	void screenToPoint(glm::vec2 & pos);
 	void movePoint(glm::vec2 & pos, int width, int height, int xChange, int yChange);
@@ -53,6 +54,7 @@ public:
 	bool pointInRect(glm::vec2 point, glm::vec2 topLeft, glm::vec2 lowRight);
 	void findSelection();
 	void userInterface(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
+	void RenderGUIBackground();
 	void modifyScriptRef(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
 
 	void playStopGame(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
@@ -78,13 +80,7 @@ public:
 
 
 
-
 	std::map<std::string, float> debug_messages;
-
-
-	//std::map < ComponentScript*, std::map<std::string, UILabel*> > scriptPointer_labels;
-	//std::map < ComponentScript*, std::map<std::string, UIPercentBar*> > scriptPointer_percBar;
-	//
 	std::map <ComponentScript*, std::map<std::string, InterfaceItem*>> scriptInterfacePointers;
 
 	UIElements UIE;
@@ -97,8 +93,17 @@ public:
 	int yDisplacement = 0;
 
 
+	bool mouseClicked = false;
+	bool mouseDown = false;
 
 private:
+
+	//Data for the GUI inspector.
+	float GUII_y_change;
+	float UIEzoom = 1.0f;
+
+
+
 	int uiWidth = 1920;
 	int uiHeight = 1080;
 	//Storage.
@@ -106,7 +111,7 @@ private:
 	int UIEx_s = 0;
 	int UIEy_s = 0;
 	//Usage
-	float UIEzoom = 1.0f;
+
 	int UIExo = 0; //DRAGGING.
 	int UIEyo = 0;
 	int UIEdown = 0; //Timer.
@@ -133,6 +138,13 @@ private:
 
 
 	UILabel debug_msg_box;
+
+
+
+	bool ctrlC_down = false;
+
+	bool ctrlV_down = false;
+
 
 
 	int showInspector = 1; //1 = Objects, 2 = Actors.

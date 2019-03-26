@@ -125,7 +125,7 @@ void Mesh::genNewMaterials(std::vector<Material> _materials) {
 void Mesh::genMatTextures() {
 	unsigned int index = 0;
 
-	for each (Material m in materials) {
+	for (Material m : materials) {
 		
 		if (m.textures.size() == 0) {
 			std::vector<Texture> newTextures;
@@ -147,14 +147,14 @@ void Mesh::bindMaterials(Shader shader) {
 
 	genMatTextures();
 
-	for each (Material m in materials) {
+	for (Material m : materials) {
 		//Loops through each texture.
 		shader.setI(("material[" + std::to_string(materialIndex) + "].shininess").c_str(), 64.0f); //Gives property of texture.
 		shader.setV3F(("material[" + std::to_string(materialIndex) + "].ambient").c_str(), m.ambient.x, m.ambient.y, m.ambient.z); //Gives property of texture.
 		shader.setV3F(("material[" + std::to_string(materialIndex) + "].diffuse").c_str(), m.diffuse.x, m.diffuse.y, m.diffuse.z); //Gives property of texture.
 		shader.setV3F(("material[" + std::to_string(materialIndex) + "].specular").c_str(), m.specular.x, m.specular.y, m.specular.z); //Gives property of texture.
 
-		for each (Texture t in m.textures) {
+		for (Texture t : m.textures) {
 
 			glActiveTexture(GL_TEXTURE0 + textureIndex); //Want to modify this texture.
 
@@ -204,12 +204,11 @@ void Mesh::draw(Shader shader, unsigned int render_mode) {
 
 
 void Mesh::drawInstanced(Shader shader, int count) {
-	unsigned int diffuseID = 0;
-	unsigned int specularID = 0;
-	glActiveTexture(GL_TEXTURE0);
 	bindMaterials(shader);
 	glBindVertexArray(VAO);
+
 	glDrawElementsInstanced(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0, count);
+
 	glBindVertexArray(0);
 
 	glDisableVertexAttribArray(0);

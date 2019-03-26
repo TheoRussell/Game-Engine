@@ -27,10 +27,12 @@ public:
 	void deleteObjects();
 	void disableCameras();
 	CamComponent getCamera(bool inGame);
+	void deleteScene(std::string path);
 	CamComponent getCamera();
-	void deleteScene();
 	bool loadBinary(std::string WorkingDir);
+	Object loadObject(std::ifstream & file, bool readType);
 	bool saveBinary(std::string WorkingDir);
+	void saveObject(Object obj, std::ofstream & file);
 	int getSelected();
 	void deselectAll();
 	unsigned int getObjectsCount();
@@ -71,6 +73,9 @@ public:
 	bool cachedGame;
 	CamComponent cachedEditorCam;
 	CamComponent cachedGameCam;
+
+
+	bool scene_deleted = false;
 private:
 	unsigned int pointLightCount;
 };

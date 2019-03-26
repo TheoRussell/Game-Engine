@@ -83,8 +83,10 @@ void PhysicsEngine::update(Scene &scene, std::string PROJpath) {
 }
 
 void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) {
+	newActorRequest = false;
 	unsigned int i = 0;
-	for each (Object obj in scene.getObjects()) {
+	for (Object obj : scene.getObjects()) {
+		if (obj.physicsBody.enabled) {
 			obj.physicsBody.update(obj.getTransformStruct());
 
 			glm::vec3 RESULTANT_FORCE(0.0f);
@@ -99,49 +101,52 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 			//Update scripts.
 			for (std::string script : obj.componentScriptIDs) {
 				if (scripts.find(script) != scripts.end()) {
-					if (obj.componentScriptData.at(script).enabled) {
-						try {
-							obj.raycasts.clear();
-							if (deltaTime == -1) {
-								obj.OnUpdate(scripts.at(script), script, window);
-							}
-							else {
-								obj.OnFixedUpdate(scripts.at(script), script, window, deltaTime);
-							}
-
-							
-						}
-						catch (std::exception ex) {
-							std::cout << "could not update script" << std::endl;
-						}
-
-						try {
-							for each (RayHit rc in obj.raycasts) {
-								Collision c = RayCast(scene, obj, rc.length, rc.increments, rc.origin, rc.direction);
-								if (c.collided) {
-									rc.collision = c;
-									obj.OnRaycast(rc, scripts[script], script, window);
-									break;
+					if (obj.componentScriptData.find(script) != obj.componentScriptData.end()) {
+						if (obj.componentScriptData.at(script).enabled) {
+							try {
+								obj.raycasts.clear();
+								if (deltaTime == -1) {
+									obj.OnUpdate(scripts.at(script), script, window);
 								}
+								else {
+									obj.OnFixedUpdate(scripts.at(script), script, window, deltaTime);
+								}
+
+
 							}
-							
-						}
-						catch (std::exception ex) {
-							std::cout << "could not run script raycasting." << std::endl;
-						}
+							catch (std::exception ex) {
+								std::cout << "could not update script" << std::endl;
+							}
 
+							try {
+								for each (RayHit rc in obj.raycasts) {
+									Collision c = RayCast(scene, obj, rc.length, rc.increments, rc.origin, rc.direction);
+									if (c.collided) {
+										rc.collision = c;
+										obj.OnRaycast(rc, scripts[script], script, window);
+										break;
+									}
+								}
 
-						if (obj.newScene != "") {
-							scripts[script]->resetNewScene();
-							ChangeScene(scene, PROJpath + "Scenes\\" + obj.newScene + ".SCENE");
-							obj.newScene = "";
-							return;
-						}
-						if (obj.newUI != "") {
-							newUI = obj.newUI;
-							scripts[script]->resetNewUI();
+							}
+							catch (std::exception ex) {
+								std::cout << "could not run script raycasting." << std::endl;
+							}
+
+							if (obj.newUI != "") {
+								newUI = obj.newUI;
+								scripts[script]->resetNewUI();
+							}
+							if (obj.newScene != "") {
+								scripts[script]->resetNewScene();
+								ChangeScene(scene, PROJpath + "Scenes\\" + obj.newScene + ".SCENE");
+								obj.newScene = "";
+								return;
+							}
+
 						}
 					}
+
 
 				}
 			}
@@ -167,51 +172,51 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 					collisions.clear();
 					objBox.translate(obj.getTransformStruct(), objBox); //Translate bounds according to object.
 
-					//Detecting collisions.
+																		//Detecting collisions.
 					for each (Object colliderObj in scene.getObjects()) {
-							if (index != i && obj.distanceTo(colliderObj.pos) < 20.0f) { //Must be in a range of 20 m for it to check collisions.
-																						 //Checks if the objects are the same in the loop.
-								for each (BoxCollider collider in colliderObj.physicsBody.coll_Box) {
+						if (index != i && obj.distanceTo(colliderObj.pos) < 20.0f) { //Must be in a range of 20 m for it to check collisions.
+																					 //Checks if the objects are the same in the loop.
+							for each (BoxCollider collider in colliderObj.physicsBody.coll_Box) {
 
-									collider.translate(colliderObj.getTransformStruct(), collider); //Translate bounds according to object.
+								collider.translate(colliderObj.getTransformStruct(), collider); //Translate bounds according to object.
 
-									float pitch = colliderObj.getTransformStruct().pitch;
-									float yaw = colliderObj.getTransformStruct().yaw;
-									float roll = colliderObj.getTransformStruct().roll;
-									Collision c;
-									if ((int)pitch % 360 > 0.0f || (int)pitch % 360 < 0.0f || (int)yaw % 360 > 0.0f || (int)yaw % 360 < 0.0f || (int)roll % 360 > 0.0f || (int)roll % 360 < 0.0f) {
-										c = checkBoxCollision(objBox, collider, roll, pitch, yaw);
-									}
-									else {
-										c = checkBoxCollision(objBox, collider);
-									}
+								float pitch = colliderObj.getTransformStruct().pitch;
+								float yaw = colliderObj.getTransformStruct().yaw;
+								float roll = colliderObj.getTransformStruct().roll;
+								Collision c;
+								if ((int)pitch % 360 > 0.0f || (int)pitch % 360 < 0.0f || (int)yaw % 360 > 0.0f || (int)yaw % 360 < 0.0f || (int)roll % 360 > 0.0f || (int)roll % 360 < 0.0f) {
+									c = checkBoxCollision(objBox, collider, roll, pitch, yaw);
+								}
+								else {
+									c = checkBoxCollision(objBox, collider);
+								}
 
 
-									if (c.collided) {
-										c.hit_label = colliderObj.name;
-										c.hit_mass = colliderObj.physicsBody.mass;
-										c.hit_linear_velocity = colliderObj.physicsBody.linear_velocity;
-										c.hit_angular_velocity = colliderObj.physicsBody.angular_velocity;
+								if (c.collided) {
+									c.hit_label = colliderObj.name;
+									c.hit_mass = colliderObj.physicsBody.mass;
+									c.hit_linear_velocity = colliderObj.physicsBody.linear_velocity;
+									c.hit_angular_velocity = colliderObj.physicsBody.angular_velocity;
 
-										c.b2_max = glm::vec3(collider.maxX, collider.maxY, collider.maxZ);
-										c.b2_min = glm::vec3(collider.minX, collider.minY, collider.minZ);
-										c.b1_max = glm::vec3(objBox.maxX, objBox.maxY, objBox.maxZ);
-										c.b1_min = glm::vec3(objBox.minX, objBox.minY, objBox.minZ);
+									c.b2_max = glm::vec3(collider.maxX, collider.maxY, collider.maxZ);
+									c.b2_min = glm::vec3(collider.minX, collider.minY, collider.minZ);
+									c.b1_max = glm::vec3(objBox.maxX, objBox.maxY, objBox.maxZ);
+									c.b1_min = glm::vec3(objBox.minX, objBox.minY, objBox.minZ);
 
-										c.objID = index;
-										collisions.push_back(c);
-										//The current object collides with an object on the scene...
-										collides = true;
-									}
+									c.objID = index;
+									collisions.push_back(c);
+									//The current object collides with an object on the scene...
+									collides = true;
 								}
 							}
-						
+						}
+
 						index++;
 					}
 					//Running collision scripts.
 					for each (Collision c in collisions) {
 						Object* hit_obj = &scene.objects[c.objID];
-						for (std::string scriptID: hit_obj->componentScriptIDs) {
+						for (std::string scriptID : hit_obj->componentScriptIDs) {
 							if (scripts.find(scriptID) != scripts.end()) {
 								try {
 									hit_obj->OnCollide(c, scripts.at(scriptID), scriptID, window);
@@ -267,15 +272,15 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 			}
 
 			//Do even if object is selected.
-			
+
 			///Forces
 			//Done in metres per second.
 			//Translation.
-			glm::vec3 GRAVITY = {0.0f, -100.0, 0.0f};
+			glm::vec3 GRAVITY = { 0.0f, -100.0, 0.0f };
 			if (obj.physicsBody.doesGravity) {
 				RESULTANT_FORCE += GRAVITY;
 			}
-			for each (glm::vec3 force in obj.forces) {
+			for (glm::vec3 force : obj.forces) {
 				RESULTANT_FORCE += force;
 			}
 			obj.forces.clear();
@@ -287,15 +292,15 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 			obj.physicsBody.linear_velocity += RESULTANT_FORCE; //Velocity is increased due to acceleration.
 
 
-			//Rotation
-			for each (glm::vec3 torque in obj.torques) {
+																//Rotation
+			for (glm::vec3 torque : obj.torques) {
 				RESULTANT_ANGULAR += torque;
 			}
 			obj.torques.clear();
 
 			RESULTANT_ANGULAR *= deltaTime;
-			obj.pitch += deltaTime * obj.physicsBody.angular_velocity.x;
-			obj.roll += deltaTime * obj.physicsBody.angular_velocity.y;
+			obj.roll += deltaTime * obj.physicsBody.angular_velocity.x;
+			obj.pitch += deltaTime * obj.physicsBody.angular_velocity.y;
 			obj.yaw += deltaTime * obj.physicsBody.angular_velocity.z;
 			obj.physicsBody.angular_velocity += RESULTANT_ANGULAR;
 
@@ -309,8 +314,14 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 				i -= 1; //1 Less item in the array.
 			}
 			else {
+
+				if (obj.newActors.size() > 0) {
+					newActorRequest = true;
+				}
 				scene.setObject(i, obj);
 			}
+		}
+			
 		
 		i++;
 	}

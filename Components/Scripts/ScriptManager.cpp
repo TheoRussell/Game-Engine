@@ -123,7 +123,7 @@ void ScriptManager::deleteApplicationCPP(std::string name) {
 			else if (line.find("	" + name + " script_" + name + ";") != std::string::npos) {
 
 			}
-			else if (line.find("	unsigned int script_" + name + "ID =") != std::string::npos) {
+			else if (line.find("	physics.addScript(&script_" + name + ")") != std::string::npos) {
 
 			}
 			else {
@@ -142,10 +142,10 @@ void ScriptManager::genCPP(std::string name) {
 		if (file.good()) {
 			file << "#include \"" << name.c_str() << ".h\"\n\n"; //						#include "SCRIPT.h"
 			file << name.c_str() << "::" << name.c_str() << "() {\n"; //				SCRIPT::SCRIPT() { setName("SCRIPT"); }
-			file << "	setName(\"" << name.c_str() << "\"); //DO NOT EDIT \n}\n\n";
+			file << "	SetName(\"" << name.c_str() << "\"); //DO NOT EDIT \n}\n\n";
 			file << name.c_str() << "::~" << name.c_str() << "() {\n\n}\n\n"; //		SCRIPT::~SCRIPT() { }
 			file << "void " << name.c_str() << "::OnStart() {\n\n}\n\n"; //				SCRIPT::OnStart() { }
-			file << "void " << name.c_str() << "::OnUpdate() {\n\n}\n\n"; //			SCRIPT::OnUpdate() { }
+			file << "void " << name.c_str() << "::OnFixedUpdate(float deltaTime) {\n\n}\n\n"; //			SCRIPT::OnUpdate() { }
 		}
 
 		file.close();
@@ -167,7 +167,7 @@ void ScriptManager::genH(std::string name) {
 			file << name.c_str() << "();\n	"; //											SCRIPT();
 			file << "~" << name.c_str() << "();\n	"; //									~SCRIPT();
 			file << "void OnStart() override;\n"; //										OnStart() override;
-			file << "	void OnUpdate() override;\n"; //									OnUpdate() override;					  };
+			file << "	void OnFixedUpdate(float deltaTime) override;\n"; //									OnUpdate() override;					  };
 			file << "private:\n\n};";
 		}
 
@@ -179,7 +179,7 @@ void ScriptManager::genH(std::string name) {
 }
 
 void ScriptManager::modifyVCXProj(std::string name) {
-	std::string path = "DevelopmentA.vcxproj"; //FILE NAME PROBABLY SHOULD BE CHANGED...
+	std::string path = "Engine.vcxproj"; //FILE NAME PROBABLY SHOULD BE CHANGED...
 	std::fstream infile(path, std::ios::in);
 	std::vector<std::string> lines;
 	std::string readLine;
@@ -189,7 +189,7 @@ void ScriptManager::modifyVCXProj(std::string name) {
 		}
 	}
 	infile.close();
-	std::fstream outfile("DevelopmentA.vcxproj", std::ios::out);
+	std::fstream outfile("Engine.vcxproj", std::ios::out);
 	if (outfile.good()) {
 		outfile.clear();
 
@@ -217,7 +217,7 @@ void ScriptManager::modifyVCXProj(std::string name) {
 }
 
 void ScriptManager::deleteVCXProj(std::string name) {
-	std::string path = "DevelopmentA.vcxproj"; //FILE NAME PROBABLY SHOULD BE CHANGED...
+	std::string path = "Engine.vcxproj"; //FILE NAME PROBABLY SHOULD BE CHANGED...
 	std::fstream infile(path, std::ios::in);
 	std::vector<std::string> lines;
 	std::string readLine;
@@ -227,7 +227,7 @@ void ScriptManager::deleteVCXProj(std::string name) {
 		}
 	}
 	infile.close();
-	std::fstream outfile("DevelopmentA.vcxproj", std::ios::out);
+	std::fstream outfile("Engine.vcxproj", std::ios::out);
 	if (outfile.good()) {
 		outfile.clear();
 
@@ -247,7 +247,7 @@ void ScriptManager::deleteVCXProj(std::string name) {
 }
 
 void ScriptManager::modifyVCXProjFilters(std::string name) {
-	std::string path = "DevelopmentA.vcxproj.filters"; //FILE NAME PROBABLY SHOULD BE CHANGED...
+	std::string path = "Engine.vcxproj.filters"; //FILE NAME PROBABLY SHOULD BE CHANGED...
 	std::fstream infile(path, std::ios::in);
 	std::vector<std::string> lines;
 	std::string readLine;
@@ -257,7 +257,7 @@ void ScriptManager::modifyVCXProjFilters(std::string name) {
 		}
 	}
 	infile.close();
-	std::fstream outfile("DevelopmentA.vcxproj.filters", std::ios::out);
+	std::fstream outfile("Engine.vcxproj.filters", std::ios::out);
 	if (outfile.good()) {
 		outfile.clear();
 
@@ -294,7 +294,7 @@ void ScriptManager::modifyVCXProjFilters(std::string name) {
 }
 
 void ScriptManager::deleteVCXProjFilters(std::string name) {
-	std::string path = "DevelopmentA.vcxproj.filters"; //FILE NAME PROBABLY SHOULD BE CHANGED...
+	std::string path = "Engine.vcxproj.filters"; //FILE NAME PROBABLY SHOULD BE CHANGED...
 	std::fstream infile(path, std::ios::in);
 	std::vector<std::string> lines;
 	std::string readLine;
@@ -304,7 +304,7 @@ void ScriptManager::deleteVCXProjFilters(std::string name) {
 		}
 	}
 	infile.close();
-	std::fstream outfile("DevelopmentA.vcxproj.filters", std::ios::out);
+	std::fstream outfile("Engine.vcxproj.filters", std::ios::out);
 	if (outfile.good()) {
 		outfile.clear();
 
