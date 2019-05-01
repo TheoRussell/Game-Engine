@@ -17,6 +17,7 @@ void Movement::OnStart() {
 }
 
 void Movement::OnFixedUpdate(float deltaTime) {
+
 	timer += deltaTime;
 	
 	if (!loadedStage) {
@@ -141,6 +142,7 @@ void Movement::ResetStage() {
 	AddInterfaceReference("Level");
 	timer = 0.0;
 	moves = 0;
+	ModifyLabel("Moves", std::to_string(moves));
 
 	for (int x = 0; x < map_height; x++) {
 		for (int z = 0; z < map_width; z++) {
@@ -330,13 +332,15 @@ void Movement::MovePlayer() {
 					AddTorque({0.0f, 0.0f, 40.0f});
 					AddForce({0.0f, 4.0f, 0.0f});
 					stageID++;
+					attempt = 1;
+					moves = 0;
+
 					if (stageID == 3) {
 						//Win sequence.
 						ChangeScene("InterfaceScene");
 						ChangeUI("Win");
-						attempt = 1;
 						stageID = 1;
-						moves = 0;
+
 					}
 					else {
 						ChangeScene("StageUnique");
@@ -509,6 +513,7 @@ bool Movement::IsChangeComplete() {
 	}
 	return false;
 }
+
 void Movement::SetRotations() {
 	if (shape == UP) {
 		SetPitch(0.0f);

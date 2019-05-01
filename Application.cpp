@@ -18,12 +18,11 @@
 
 
 //<@GENERATED CODE@SCRIPT IMPORT@>//
-#include "Components\Scripts\FirstScript.h"
-#include "Components\Scripts\CollisionScript.h"
-#include "Components\Scripts\PlayerController.h"
-#include "Components\Scripts\Player.h"
 #include "Components\Scripts\Bloxorz.h"
 #include "Components\Scripts\Movement.h"
+#include "Components\Scripts\walking.h"
+#include "Components\Scripts\Bullet.h"
+#include "Components\Scripts\Reaction.h"
 //<\@GENERATED CODE@SCRIPT IMPORT@>//
 
 
@@ -37,25 +36,12 @@ int width = 1920;
 int height = 1080;
 
 
-std::vector<Model> block_models;
-std::vector<unsigned int> block_types;
-std::vector<glm::vec3> block_positions;
-
-
 CONST double render_update = 1.0 / 60.0;
 CONST double physics_update = render_update * 2.0;
 
 
-
-BOOL WINAPI HandlerRoutine(DWORD dwCtrlType) {
-
-	return dwCtrlType == CTRL_CLOSE_EVENT;
-}
-
-
-
 void GLFWErrorHandling(int, const char* code) {
-	//std::cout << "GLFW ERROR: " << code << std::endl;
+	//Errors will be called to here if they aren't handled.
 }
 
 
@@ -68,12 +54,7 @@ int main(void)
 
 	/* Initialize the library */
 	if (!glfwInit())
-		return -1;
-
-
-	//Multisampling
-	//glfwWindowHint(GLFW_SAMPLES, 2);
-
+		return -1; //Exits the program if it can't initialise.
 
 	/* Create a windowed mode window and its OpenGL context */
 	GLFWwindow* window;
@@ -88,10 +69,10 @@ int main(void)
 	glfwMakeContextCurrent(window);
 	glfwSetInputMode(window, GLFW_STICKY_KEYS, 1);
 	
-	//width = 1920;
-	//height = 1080;
+	//Getting a list of all monitors.
 	int count;
 	GLFWmonitor** monitors = glfwGetMonitors(&count);
+	//Identifying the primary monitor. - In future iterations, the user could choose the starting monitor.
 	GLFWmonitor* monitor = monitors[0];
 	const GLFWvidmode* video = glfwGetVideoMode(monitor);
 	width = video->width;
@@ -99,7 +80,7 @@ int main(void)
 	
 
 
-	glfwSetWindowMonitor(window, monitor, 0, 0, width, height, video->refreshRate);
+	//glfwSetWindowMonitor(window, monitor, 0, 0, width, height, video->refreshRate);
 	glfwSetWindowSize(window, width, height);
 	glfwSetWindowPos(window, 0, 0);
 
@@ -121,6 +102,7 @@ int main(void)
 
 	std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
 
+	//Instantiates the core engine sections.
 	ResourceManager resources;
 	PhysicsEngine physics;
 	AudioEngine audio;
@@ -133,7 +115,8 @@ int main(void)
 	engine_interface.height = height;
 
 
-
+	//Plays the starting sound of the engine running.
+	//Possibly disable in future iterations.
 	int LoadSound = AudioSource::generate();
 	AudioSource::playAudio(LoadSound, AudioStream::GetBuffer("car"));
 
@@ -144,13 +127,9 @@ int main(void)
 		glfwTerminate();
 		exit(1);
 	}
-	if (!client.connected) {
-		//What to do if not connected to server.
-	}
 
-	float lastX = width / 2;
-	float lastY = height / 2;
-	glfwSetCursorPos(window, lastX, lastY);
+	//Centers cursor to middle of the application.
+	glfwSetCursorPos(window, width / 2, height / 2);
 
 
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback); /*Resizing the window. - Calls the function using the window context*/
@@ -170,7 +149,7 @@ int main(void)
 		
 		glClearColor(0, 0, 0, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); //reset all of the depth planes.
-
+		//Displays the projects to the user.
 		engine_interface.ProjectsTab(client, resources);
 
 		glfwSwapBuffers(window);
@@ -178,19 +157,13 @@ int main(void)
 	}
 
 
+
 	unsigned int blueArrowID = 0;
-	unsigned int greenArrowID = 0;
-	unsigned int redArrowID = 0;
-	unsigned int blueScaArrowID = 0;
-	unsigned int greenScaArrowID = 0;
-	unsigned int redScaArrowID = 0;
-	unsigned int blueRotArrowID = 0;
-	unsigned int greenRotArrowID = 0;
-	unsigned int redRotArrowID = 0;
-	unsigned int sphereID = 0;
+	//Displaying the collision boxes requires a cube model.
 	Model cube = Model("Cube", "src\\models\\block.obj");
 
 	if (client.engineView == PRODUCT) {
+		//Activates the final game.
 		client.WorkingDir = client.project.getActive();
 		client.loadProject();
 		resources.loadSavedActors(client.WorkingDir);
@@ -207,42 +180,40 @@ int main(void)
 		Model arrow_rotate_blue("RotBlueArrow", "src\\models\\ArrowRotate.obj");
 		Model arrow_rotate_green("RotGreenArrow", &arrow_rotate_blue, "green_arrow.mtl");
 		Model arrow_rotate_red("RotRedArrow", &arrow_rotate_blue, "red_arrow.mtl");
-		blueArrowID = resources.add(&arrow_blue);
-		greenArrowID = resources.add(&arrow_green);
-		redArrowID = resources.add(&arrow_red);
-		blueScaArrowID = resources.add(&arrow_scale_blue);
-		greenScaArrowID = resources.add(&arrow_scale_green);
-		redScaArrowID = resources.add(&arrow_scale_red);
-		blueRotArrowID = resources.add(&arrow_rotate_blue);
-		greenRotArrowID = resources.add(&arrow_rotate_green);
-		redRotArrowID = resources.add(&arrow_rotate_red);
+		//Important to have a reference to the starting arrow type, when displaying transformations / selected obj.
+		blueArrowID = resources.addModel(&arrow_blue);
+		resources.addModel(&arrow_green);
+		resources.addModel(&arrow_red);
+		resources.addModel(&arrow_scale_blue);
+		resources.addModel(&arrow_scale_green);
+		resources.addModel(&arrow_scale_red);
+		resources.addModel(&arrow_rotate_blue);
+		resources.addModel(&arrow_rotate_green);
+		resources.addModel(&arrow_rotate_red);
+		//The sphere is for rendering objects without a body component.
 		Model sphere = Model("Sphere", "src\\models\\sphere.obj");
-		sphereID = resources.add(&sphere);
+		resources.addModel(&sphere);
 
 	}
 
 
 	
 	//<@GENERATED CODE@SCRIPTS@>//
-	FirstScript firstScript;
-	physics.addScript(&firstScript);
-	CollisionScript script_CollisionScript;
-	physics.addScript(&script_CollisionScript);
-	PlayerController script_PlayerController;
-	physics.addScript(&script_PlayerController);
-	Player script_Player;
-	physics.addScript(&script_Player);
 	Bloxorz script_Bloxorz;
 	physics.addScript(&script_Bloxorz);
 	Movement script_Movement;
 	physics.addScript(&script_Movement);
+	walking script_walking;
+	physics.addScript(&script_walking);
+	Bullet script_Bullet;
+	physics.addScript(&script_Bullet);
+	Reaction script_Reaction;
+	physics.addScript(&script_Reaction);
 	//<\@GENERATED CODE@SCRIPTS@>//
 
 	int frames = 0;
 	bool InGame = false;
 
-
-	resources.setViewScene(0);
 	client.setScroll(window); //Allows mouse scroll wheel input.
 
 
@@ -258,22 +229,21 @@ int main(void)
 	double lastFrame = glfwGetTime();
 	double updateLag = 0.0;
 
+	//Loads the starting interface.
 	engine_interface.loadInterface(client.WorkingDir + "Interfaces\\" + client.project.startInterface + ".gui", client, physics);
 
 
 	while (!glfwWindowShouldClose(window))
 	{
 
-
-		if (client.engineView == PUBLISHED) {
-			client.closeProgram = true;
-		}
-
 		tempInGame = InGame;
 
+
+		//Calculates the time since the last render / iteration.
 		double currentFrame = glfwGetTime();
 		double frameDelay = currentFrame - lastFrame;
 		lastFrame = currentFrame;
+		//This is to calc how many times the physics must be updated to keep up before the next render.
 		updateLag += frameDelay;
 
 
@@ -282,17 +252,25 @@ int main(void)
 		if (client.engineView == UIEditor) {
 			resources.clearDisplay();
 			client.updateScroll();
-		}
+		} //We don't render the viewport or run the game while editing the GUI.
 		else {
 			while (updateLag >= physics_update) {
 				client.update(window);
 				InGame = client.InGame;
 				if (InGame) {
+					//Updating the font sizes if the screen changes dimensions.
+					if (engine_interface.width != width | engine_interface.height != height) {
+						engine_interface.FrameSizeChange(width, height);
+						engine_interface.width = width;
+						engine_interface.height = height;
+					}
+					//Updating each of the core sections.
 					engine_interface.OnUpdate(physics_update, client, physics, resources);
 					physics.update(client.world, physics_update, client.project.directory);
+					audio.update(client.world);
 					engine_interface.mouseClicked = false;
 
-					audio.update(client.world);
+					//Changing interface if a script has requested.
 					if (physics.newUI != "") {
 						engine_interface.loadInterface(client.WorkingDir + "interfaces\\" + physics.newUI + ".gui", client, physics);
 						physics.newUI = "";
@@ -304,7 +282,8 @@ int main(void)
 						for (Object o : client.world.objects) {
 							bool addedActors = false;
 							for (Actor act : o.newActors) {
-								unsigned int newObj = client.world.addObject(resources.getActor(act.name, &engine_interface.debug_messages), true);
+								//Places the actor in the world as a new object.
+								unsigned int newObj = client.world.addObject(resources.getActor(act.name, &engine_interface.debug_messages), true); //Passes in the debug message dictionary for errors to be displayed in game if the actor isn't found.
 								client.world.objects[newObj].pos += act.pos;
 								client.world.objects[newObj].sca *= act.scale;
 								client.world.objects[newObj].roll += act.roll;
@@ -312,6 +291,7 @@ int main(void)
 								client.world.objects[newObj].yaw += act.yaw;
 								addedActors = true;
 							}
+							//Clears the new actors vector so they aren't spawned in the next game tick.
 							o.newActors.clear();
 							client.world.objects[index] = o;
 							index++;
@@ -332,38 +312,15 @@ int main(void)
 			}
 
 
+			//Rendering the scene.
 			if (!client.closeProgram) {
-				if (!InGame) {
-					if (client.click_l && !client.click_r && !client.viewingCursor) {
-						Collision c;
-						c.collided = false;
-						c = physics.RayCast(client.world, client.player);
-						if (c.collided) {
-							//Successful raycast.
-							client.world.select(c.objID);
-						}
-						client.click_l = false;
-					}
-					if (client.click_l && !client.click_r && client.viewingCursor) {
-						client.click_l = false;
-					}
-					if (client.click_r && !client.click_l && client.viewingCursor) {
-						client.click_r = false;
-					}
 
-					if (client.click_r && !client.click_l && !client.viewingCursor) {
-						client.world.deselect(client.world.getSelected());
-						client.click_r = false;
-					}
-				}
-
-
-
-
+				//Calculating time since last frame.
 				double deltaTime = updateLag / physics_update;
+				//Interpolating the scene to create smooth motions.
 				Scene interpolatedScene = client.world.interpolate(lastScene, deltaTime);
-
-				resources.setMatrices(client.world.getCamera(InGame).camera.viewMatrix(), projection); //SHOULD USE INTERPOLATED CAMERA BUT CAUSES BUG.
+				resources.setMatrices(client.world.getCamera(InGame).camera.viewMatrix(), projection);
+				//Updates the viewport to have the correct position (ie, in top right corner, or covering the whole application).
 				glViewport(engine_interface.xDisplacement, height - (9 * (width - engine_interface.xDisplacement) / 16) - engine_interface.UIEy, width - engine_interface.xDisplacement, 9 * (width - engine_interface.xDisplacement) / 16);
 
 
@@ -442,7 +399,7 @@ int main(void)
 
 
 
-
+		//Calculating FPS.
 		frames++;
 		if (glfwGetTime() - timer > 1.0f) {
 			//Every 1 second.
@@ -451,16 +408,19 @@ int main(void)
 			frames = 0;
 		}
 
+		//Displaying UI.
 		engine_interface.update(InGame, client, physics, resources, scripts);
-		glViewport(engine_interface.xDisplacement, height - ( 9 * (width - engine_interface.xDisplacement) / 16), width - engine_interface.xDisplacement, 9 * (width - engine_interface.xDisplacement) / 16);
 	
 		if (tempInGame != InGame) {
+			//When changing playing/exiting the game, it reloads the scene.
+			//It is necessary as playing modifies save data however, it should revert back to start when no longer testing.
 			if (InGame == false) {
 				client.world.loadBinary(client.WorkingDir + "\\Scenes\\" + client.world.name);
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 				client.viewingCursor = true;
 			}
 			else {
+				//When entering game, saves current scene.
 				client.world.saveBinary(client.WorkingDir);
 				glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 				client.viewingCursor = false;
@@ -481,6 +441,7 @@ int main(void)
 		glfwPollEvents();
 	}
 
+	//Cleaning up memory.
 	resources.end();
 	audio.clean();
 
@@ -491,7 +452,10 @@ int main(void)
 	return 0;
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
-	glViewport(0, 0, width, height);
+void framebuffer_size_callback(GLFWwindow* window, int _width, int _height)
+{	
+	//This function is called when the window changes dimensions.
+	glViewport(0, 0, _width, _height);
+	width = _width;
+	height = _height;
 }

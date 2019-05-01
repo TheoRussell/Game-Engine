@@ -45,10 +45,11 @@ bool ClientHandler::loadProject() {
 					projFilePath = fileName;
 				}
 			}
+			//Requesting the project to be loaded.
 			project.directory = WorkingDir;
 			project.load(projFilePath);
 
-
+			//Returns a boolean if the scene successfully loaded.
 			return world.loadBinary(WorkingDir + "Scenes\\" + project.startScene);
 
 		}
@@ -62,21 +63,18 @@ bool ClientHandler::loadProject() {
 }
 
 unsigned int preUpdate = 0;
-double pps = 1 / 120; //Packets per second.
+double pps = 1 / 60; //Updates per second.
 unsigned int keyDelay_g = 60;
-unsigned int keyDelay_p = 60;
-unsigned int keyDelay_c = 60;
-unsigned int keyDelay_cr = 60;
-unsigned int keyDelay_r = 60;
+
 unsigned int keyDelay_m = 60;
 
 void ClientHandler::update(GLFWwindow *window)
 {
 
 	if (InGame) {
-		InEditor = false;
+		InGamePreview = false;
 	}
-	if (InEditor) {
+	if (InGamePreview) {
 		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	}
 	else if (!InGame) {
@@ -89,24 +87,22 @@ void ClientHandler::update(GLFWwindow *window)
 	}
 	else {
 		CamComponent cameraData = world.getCamera(InGame);
-		//Sending data to the server.
 		unsigned int currentTime = (unsigned int)glfwGetTime();
 		if (currentTime - preUpdate >= pps) {
-			keyDelay_g++; //Collider box wait
-			keyDelay_p++; //Mouse wait
-			keyDelay_c++; //Click wait
-			keyDelay_cr++;
-			keyDelay_m++;
+			keyDelay_g++; //View collisions key.
+			keyDelay_m++; //Change transformation mode.
 			preUpdate = currentTime;
 			//Every 60th of a second.
 
 			if (cameraData.camera.enabled) {
-				if (InEditor) {
+				if (InGamePreview) {
+					//Interpolating camera positions.
 					cameraData.camera.lerpTransform();
 					cameraData.camera.lerpMouse(cameraData.componentTransform.yaw, cameraData.componentTransform.pitch);
 					cameraData.camera.calcViewMatrix(cameraData.componentTransform.position);
 				}
 				else {
+					//Involve position of scene object in camera interpolation for in the game.
 					cameraData.camera.lerpTransform();
 					cameraData.camera.lerpMouse(cameraData.componentTransform.yaw + world.getObject(cameraData.componentTransform.objID).yaw, cameraData.componentTransform.pitch + world.getObject(cameraData.componentTransform.objID).pitch);
 					cameraData.camera.calcViewMatrix(cameraData.componentTransform.position + world.getObject(cameraData.componentTransform.objID).pos);
@@ -120,15 +116,15 @@ void ClientHandler::update(GLFWwindow *window)
 				//Generic movement.
 				if (!cameraData.camera.locked) {
 					if (mouse_xOffset > 0 || mouse_yOffset > 0 || mouse_xOffset < 0 || mouse_yOffset < 0) {
-
-						if (!viewingCursor && !InEditor) {
+						//Transform the scene object if in the game, rather than just the camera in the preview.
+						if (!viewingCursor && !InGamePreview) {
 							world.objects[cameraData.componentTransform.objID].yaw = glm::mod(world.objects[cameraData.componentTransform.objID].yaw + (mouse_xOffset / 60.0f), 360.0f);
 							world.objects[cameraData.componentTransform.objID].pitch += mouse_yOffset / 60.0f;
 							if (world.objects[cameraData.componentTransform.objID].pitch > 89.0f) { world.objects[cameraData.componentTransform.objID].pitch = 89.0f; }
 							if (world.objects[cameraData.componentTransform.objID].pitch < -89.0f) { world.objects[cameraData.componentTransform.objID].pitch = -89.0f; }
 						}
 
-						if (InEditor) {
+						if (InGamePreview) {
 							cameraData.componentTransform.yaw = glm::mod(cameraData.componentTransform.yaw + (mouse_xOffset / 60.0f), 360.0f);
 							cameraData.componentTransform.pitch += mouse_yOffset / 60.0f;
 							if (cameraData.componentTransform.pitch > 89.0f) { cameraData.componentTransform.pitch = 89.0f; }
@@ -136,170 +132,110 @@ void ClientHandler::update(GLFWwindow *window)
 						}
 					}
 				}
-
-
-				if (scrollWheel != 0) {
-					unsigned int selectedID = world.getSelected();
-					if (selectedID > -1) {
-						if (InEditor) {
-							if (glfwGetKey(window, ic.key_arrow_down) == GLFW_PRESS) {
-								if (editMode == MOVE)
-									world.moveObject(selectedID, glm::vec3(0.0f, 0.05f * scrollWheel, 0.0f));
-								if (editMode == SCALE)
-									world.scaleObject(selectedID, glm::vec3(0.0f, 0.05f * scrollWheel, 0.0f));
-								if (editMode == ROTATE)
-									world.rotateObject(selectedID, "y", 1.0f * scrollWheel);
-							}
-							if (glfwGetKey(window, ic.key_arrow_up) == GLFW_PRESS) {
-								if (editMode == MOVE)
-									world.moveObject(selectedID, glm::vec3(0.05f * scrollWheel, 0.0f, 0.0f));
-								if (editMode == SCALE)
-									world.scaleObject(selectedID, glm::vec3(0.05f * scrollWheel, 0.0f, 0.0f));
-								if (editMode == ROTATE)
-									world.rotateObject(selectedID, "x", 1.0f * scrollWheel);
-							}
-							if (glfwGetKey(window, ic.key_arrow_right) == GLFW_PRESS) {
-								if (editMode == MOVE)
-									world.moveObject(selectedID, glm::vec3(0.0f, 0.0f, 0.05f * scrollWheel));
-								if (editMode == SCALE)
-									world.scaleObject(selectedID, glm::vec3(0.0f, 0.0f, 0.05f * scrollWheel));
-								if (editMode == ROTATE)
-									world.rotateObject(selectedID, "z", 01.0f * scrollWheel);
-							}
-						}
-					}
-
-
-					scrollWheel = 0;
-				}
 			}
 
 
-			if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-
-				if (keyDelay_c >= 10) {
-					click_l = !click_l;
-					keyDelay_c = 0;
-				}
-
-			}
-			if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-				//
-				if (keyDelay_cr >= 10) {
-					click_r = !click_r;
-					keyDelay_cr = 0;
-				}
-			}
 			cameraData.camera.newPos = glm::vec3(0.0f, 0.0f, 0.0f);
-			for (unsigned int keyID = 0; keyID < 348; keyID++) {
-				try {
-					//Detects key press.
-					if (glfwGetKey(window, keyID) == GLFW_PRESS) {
-						if (InEditor) {
-
-							//Only allow input if the user isn't using the user interface.
-							if (keyID == ic.key_forward || (!viewingCursor && keyID == ic.key_arrow_up)) {
-								//Forwards
-								cameraData.componentTransform.position += (cameraData.camera.getFront() * 1.05f) / 60.0f;
-							}
-							else if (keyID == ic.key_backward || (!viewingCursor && keyID == ic.key_arrow_down)) {
-								//Backwards
-								cameraData.componentTransform.position -= (cameraData.camera.getFront() * 1.05f) / 60.0f;
-							}
-							else if (keyID == ic.key_up) {
-								//Up
-								cameraData.componentTransform.position += (glm::vec3(0.0f, 1.0f, 0.0f) * 1.05f) / 60.0f;
-							}
-							else if (keyID == ic.key_down) {
-								//Down
-								cameraData.componentTransform.position -= (glm::vec3(0.0f, 1.0f, 0.0f) * 1.05f) / 60.0f;
-							}
-							else if (keyID == ic.key_left || (!viewingCursor && keyID == ic.key_arrow_left)) {
-								//Left
-								cameraData.componentTransform.position -= (glm::normalize(glm::cross(cameraData.camera.getFront(), glm::vec3(0.0f, 1.0f, 0.0f))) * 1.05f) / 60.0f;
-							}
-							else if (keyID == ic.key_right || (!viewingCursor && keyID == ic.key_arrow_right)) {
-								//Right
-								cameraData.componentTransform.position += (glm::normalize(glm::cross(cameraData.camera.getFront(), glm::vec3(0.0f, 1.0f, 0.0f))) * 1.05f) / 60.0f;
-							}
-						}
-
-						if (keyID == ic.key_escape) {
-							//Escape
-							//closeProgram = true;
-							if (engineView != PRODUCT) {
-								if (InEditor) {
-									InEditor = false;
-								}
-								else if (InGame) {
-									InGame = false;
-								}
-								if (engineView == Game) {
-									engineView = Editor;
-								}
-							}
 
 
-						}
-						else if (keyID == ic.key_viewCollisions && engineView != PRODUCT && engineView != UIEditor) {
-							//Collisions
-							if (keyDelay_g >= 10) {
-								viewingCollisions = !viewingCollisions;
-								keyDelay_g = 0;
-							}
-						}
-						else if (keyID == 77 && InEditor) { //M
-							if (keyDelay_m >= 10) {
-								if (editMode == MOVE) {
-									editMode = SCALE;
-								}
-								else if (editMode == SCALE) {
-									editMode = ROTATE;
-								}
-								else if (editMode == ROTATE) {
-									editMode = MOVE;
-								}
-								keyDelay_m = 0;
-							}
-						}
-						else {
-							//std::cout << keyID << std::endl;
-						}
+			if (KeyDown(window, KEY_ESCAPE)) {
+				//Exiting the small play window or leaving the test window.
+				if (engineView != PRODUCT) {
+					if (InGamePreview) {
+						InGamePreview = false;
+					}
+					else if (InGame) {
+						InGame = false;
+					}
+					if (engineView == Game) {
+						engineView = Editor;
 					}
 				}
-				catch (std::exception ex) {
-
+			}
+			else if (KeyDown(window, KEY_G) && engineView != PRODUCT && engineView != UIEditor) {
+				//Collisions
+				if (keyDelay_g >= 10) {
+					viewingCollisions = !viewingCollisions;
+					keyDelay_g = 0;
 				}
 			}
-			if (!InEditor && InGame) {
+			else if (KeyDown(window, KEY_M) && InGamePreview) {
+				//Changing selected object transformation mode.
+				if (keyDelay_m >= 10) {
+					if (editMode == MOVE) {
+						editMode = SCALE;
+					}
+					else if (editMode == SCALE) {
+						editMode = ROTATE;
+					}
+					else if (editMode == ROTATE) {
+						editMode = MOVE;
+					}
+					keyDelay_m = 0;
+				}
+			}
+
+
+			if (InGamePreview) {
+				if (KeyDown(window, KEY_W)) {
+					//Forwards
+					cameraData.componentTransform.position += (cameraData.camera.getFront() * 1.05f) / 60.0f;
+				}
+				if (KeyDown(window, KEY_S)) {
+					//Backwards
+					cameraData.componentTransform.position -= (cameraData.camera.getFront() * 1.05f) / 60.0f;
+				}
+				if (KeyDown(window, KEY_SPACE)) {
+					//Up
+					cameraData.componentTransform.position += (glm::vec3(0.0f, 1.0f, 0.0f) * 1.05f) / 60.0f;
+				}
+				if (KeyDown(window, KEY_LSHIFT)) {
+					//Down
+					cameraData.componentTransform.position -= (glm::vec3(0.0f, 1.0f, 0.0f) * 1.05f) / 60.0f;
+				}
+				if (KeyDown(window, KEY_A)) {
+					//Left
+					cameraData.componentTransform.position -= (glm::normalize(glm::cross(cameraData.camera.getFront(), glm::vec3(0.0f, 1.0f, 0.0f))) * 1.05f) / 60.0f;
+				}
+				if (KeyDown(window, KEY_D)) {
+					//Right
+					cameraData.componentTransform.position += (glm::normalize(glm::cross(cameraData.camera.getFront(), glm::vec3(0.0f, 1.0f, 0.0f))) * 1.05f) / 60.0f;
+				}
+			}
+
+			if (!InGamePreview && InGame) {
 				world.cachedGameCam = cameraData;
 			}
-			if (InEditor) {
+			if (InGamePreview) {
 				world.cachedEditorCam = cameraData;
 			}
-
-			player.pos = cameraData.componentTransform.position + world.objects[cameraData.componentTransform.objID].pos;
-			player.roll = mainCamera.getRoll();
-			player.pitch = mainCamera.getPitch();
-			player.yaw = mainCamera.getYaw();
-
-
 
 
 		}
 	}
-
-
-	
 }
+
+
+bool ClientHandler::KeyDown(GLFWwindow *window, int key) {
+	try {
+		return glfwGetKey(window, key) == GLFW_PRESS;
+	}
+	catch (std::exception ex) {
+		return false;
+	}
+	return false;
+}
+
+
 
 void ClientHandler::mouse(GLFWwindow* window) {
 	double xpos, ypos;
 
 	//Mouse data will only be received if the cursor is embedded in program, not visible.
 	if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED) {
+		//Calculates the offset of the mouse from its last position (centre of the screen).
 		glfwGetCursorPos(window, &xpos, &ypos);
-		mouse_xOffset = (float)xpos - lastX;
+		mouse_xOffset = (float)xpos - lastX; //Used for rotating camera.
 		mouse_yOffset = lastY - (float)ypos;
 		lastX = (float)xpos;
 		lastY = (float)ypos;

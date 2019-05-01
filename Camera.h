@@ -14,12 +14,16 @@ public:
 	void setMoveSensitivity(float sensitivity);
 	float getLookSensitivity();
 	float getMoveSensitivity();
+
 	void setNextViewMatrix(glm::mat4 _matrix);
 	void setViewMatrix(glm::mat4 _matrix);
+	void calcViewMatrix(glm::vec3 _pos);
+	glm::mat4 viewMatrix();
+
 	void lerpViewMatrix();
 	void lerpTransform();
 	void lerpMouse(float _yaw, float _pitch);
-	void lerpMouse();
+
 	float getPitch();
 	float getYaw();
 	float getRoll();
@@ -38,17 +42,13 @@ public:
 	float r_preY = 0.0f;
 	float r_preX = 0.0f;
 
-	glm::mat4 viewMatrix();
+	
 	void setPos(glm::vec3 _newPOS);
-	void KEY_INPUT(int KEY, float deltaTime);
-	void MOUSE_MOVE(int x_offset, int y_offset);
+
 	void setPitch(float _pitch);
 	void setYaw(float _yaw);
 	void setRoll(float _roll);
-	void calcViewMatrix(glm::vec3 _pos);
-	void calcViewMatrix();
-
-	bool engineCam = true;
+	
 	bool enabled = true;
 	bool locked = false;
 private:
@@ -68,13 +68,7 @@ private:
 	float pitch = 0.0f;
 	float yaw = 0.0f;
 	float roll = 0.0f;
-	bool gravity = true;
-	bool fpsMode = true;
-	unsigned int jumpTime;
-	unsigned int modeSwap;
-	float xBound = 0.55f;
-	float yBound = -0.80f;
-	float zBound = 0.55f;
+
 	float fov = 45.0f;
 };
 

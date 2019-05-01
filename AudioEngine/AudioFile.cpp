@@ -1,6 +1,6 @@
 #include "AudioFile.h"
 
-
+//Code modified from https://stackoverflow.com/questions/36949957/loading-a-wav-file-for-openal to fit my engine and handle more errors.
 
 unsigned int AudioFile::generate(std::string filepath) {
 	int bufferID = -1;

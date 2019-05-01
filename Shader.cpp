@@ -8,52 +8,35 @@
 
 Shader::Shader(const GLchar* vertexShaderPath, const GLchar* fragShaderPath)
 {
-	std::string v_shader = getShader(vertexShaderPath);
-	std::string f_shader = getShader(fragShaderPath);
-	const char* v_ShaderCode = v_shader.c_str();
-	const char* f_ShaderCode = f_shader.c_str();
-	//Vertex shader.
+	//Program with a vertex and fragment shader.
 	unsigned int vertex, fragment;
-	int errorLength;
-	char infoLog[512];
+	generateShader(vertex, getShader(vertexShaderPath).c_str(), GL_VERTEX_SHADER);
+	generateShader(fragment, getShader(fragShaderPath).c_str(), GL_FRAGMENT_SHADER);
 
-	genVertex(vertex, v_shader.c_str());
-	genFragment(fragment, f_shader.c_str());
-
-	//Generate the shader program.
-	programID = glCreateProgram();
-	glAttachShader(programID, vertex);
-	glAttachShader(programID, fragment);
-	glLinkProgram(programID);
-	glGetProgramiv(programID, GL_LINK_STATUS, &errorLength);
-	if (!errorLength) {
-		glGetProgramInfoLog(programID, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILURE\n" << infoLog << std::endl;
-	}
-	//Delete unneccessary shaders.
-	glDeleteShader(vertex);
-	glDeleteShader(fragment);
+	
+	CompileProgram({ vertex, fragment });
 }
 
 Shader::Shader(const GLchar* vertexShaderPath, const GLchar* geomShaderPath, const GLchar* fragShaderPath)
 {
-	std::string v_shader = getShader(vertexShaderPath);
-	std::string f_shader = getShader(fragShaderPath);
-	std::string g_shader = getShader(geomShaderPath);
-
-	//Vertex shader.
+	//Program with vertex, geometry and fragment shader.
 	unsigned int vertex, geometry, fragment;
-	genVertex(vertex, v_shader.c_str());
-	genGeometry(geometry, g_shader.c_str());
-	genFragment(fragment, f_shader.c_str());
-	//Generate the shader program.
+	generateShader(vertex, getShader(vertexShaderPath) .c_str(), GL_VERTEX_SHADER);
+	generateShader(geometry, getShader(geomShaderPath) .c_str(), GL_GEOMETRY_SHADER);
+	generateShader(fragment, getShader(fragShaderPath) .c_str(), GL_FRAGMENT_SHADER);
 
+	CompileProgram({vertex, geometry, fragment});
+}
+
+
+void Shader::CompileProgram(std::vector<unsigned int> shaders) {
+	//Generate the shader program (compiled from the other shaders into 1).
 	int errorLength;
 	char infoLog[512];
 	programID = glCreateProgram();
-	glAttachShader(programID, vertex);
-	glAttachShader(programID, geometry);
-	glAttachShader(programID, fragment);
+	for (int shaderID : shaders) {
+		glAttachShader(programID, shaderID);
+	}
 	glLinkProgram(programID);
 	glGetProgramiv(programID, GL_LINK_STATUS, &errorLength);
 	if (!errorLength) {
@@ -61,48 +44,23 @@ Shader::Shader(const GLchar* vertexShaderPath, const GLchar* geomShaderPath, con
 		std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILURE\n" << infoLog << std::endl;
 	}
 	//Delete unneccessary shaders.
-	glDeleteShader(vertex);
-	glDeleteShader(fragment);
-	glDeleteShader(geometry);
-}
-
-
-void Shader::genVertex(unsigned int &id, const char* code) {
-	int errorLength;
-	char infoLog[512];
-	id = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(id, 1, &code, nullptr);
-	glCompileShader(id);
-	glGetShaderiv(id, GL_COMPILE_STATUS, &errorLength);
-	if (!errorLength) {
-		glGetShaderInfoLog(id, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+	for (int shaderID : shaders) {
+		glDeleteShader(shaderID);
 	}
 }
 
-void Shader::genFragment(unsigned int &id, const char* code) {
-	int errorLength;
-	char infoLog[512];
-	id = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(id, 1, &code, nullptr);
-	glCompileShader(id);
-	glGetShaderiv(id, GL_COMPILE_STATUS, &errorLength);
-	if (!errorLength) {
-		glGetShaderInfoLog(id, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-}
 
-void Shader::genGeometry(unsigned int &id, const char* code) {
+void Shader::generateShader(unsigned int &id, const char* code, int shader_type) {
+	//Generating the shader program from the file.
 	int errorLength;
 	char infoLog[512];
-	id = glCreateShader(GL_GEOMETRY_SHADER);
+	id = glCreateShader(shader_type); //Generates a shader ID.
 	glShaderSource(id, 1, &code, nullptr);
 	glCompileShader(id);
 	glGetShaderiv(id, GL_COMPILE_STATUS, &errorLength);
 	if (!errorLength) {
 		glGetShaderInfoLog(id, 512, NULL, infoLog);
-		std::cout << "ERROR::SHADER::GEOMETRY::COMPILATION_FAILED\n" << infoLog << std::endl;
+		std::cout << "ERROR::SHADER::" << shader_type << "::COMPILATION_FAILED\n" << infoLog << std::endl;
 	}
 }
 
@@ -111,13 +69,14 @@ void Shader::genGeometry(unsigned int &id, const char* code) {
 std::string Shader::getShader(std::string path) {
 	std::ifstream file;
 	std::string vshaderSource = "";
-	
+	//Reading the shader text files.
 	try {
 		file.open(path);
 
 		if (!file) {
 			std::cout << "No shader present at " << path << std::endl;
 		}
+		//Reads the whole file into the vshaderSource string.
 		std::string curLine;
 		while (getline(file, curLine)) {
 			vshaderSource += curLine + "\n";

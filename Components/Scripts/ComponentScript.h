@@ -143,24 +143,23 @@
 #define KEY_PAD_EQUAL GLFW_KEY_KP_EQUAL
 
 
-struct ImpulseTransfer {
-	glm::vec3 force = glm::vec3(0.0f, 0.0f, 0.0f); //net force (N).
-	float time = 1.0f; //how long it's applied (seconds).
-};
-
-
 struct Collision {
-	std::string hit_label = "";
+	//Structure for transferring collision data through parameters of script functions.
+	std::string hit_label = ""; //The label of the hit object.
 	float hit_mass = 50.0f;
+	//Hit object's linear and angular velocity (for momentum calculations).
 	glm::vec3 hit_linear_velocity = glm::vec3(0.0f);
 	glm::vec3 hit_angular_velocity = glm::vec3(0.0f);
 
 	bool collided = false;
+	//ID of the object that it collided with.
 	unsigned int objID = 0;
 	glm::vec3 impact_position = glm::vec3(0.0f,0.0f,0.0f);
+	//Intersection distance of the vertex within the collision box.
 	float distanceX = 0.0f;
 	float distanceY = 0.0f;
 	float distanceZ = 0.0f;
+	//Size of the boxes.
 	glm::vec3 b2_max;
 	glm::vec3 b2_min;
 	glm::vec3 b1_max;
@@ -176,6 +175,7 @@ struct RayHit {
 };
 
 struct DataStorage {
+	//Used to store script variables that are object specific.
 	std::map<std::string, int> variable_int;
 	std::map<std::string, unsigned int> variable_uint;
 	std::map<std::string, bool> variable_bool;
@@ -186,6 +186,7 @@ struct DataStorage {
 
 
 struct Actor {
+	//Basic actor details - ie, the name of the actor to be spawned.
 	std::string name;
 	glm::vec3 pos;
 	glm::vec3 scale;
@@ -196,8 +197,6 @@ struct Actor {
 
 
 
-class Scene;
-
 class ComponentScript
 {
 public:
@@ -206,34 +205,40 @@ public:
 	~ComponentScript();
 	ComponentScript(glm::vec3 _pos, glm::vec3 _sca, float _pitch, float _roll, float _yaw);
 	ComponentScript(glm::vec3 _pos, glm::vec3 _sca, float _pitch, float _roll, float _yaw, ComponentManager _components);
+	void update(glm::vec3 _pos, glm::vec3 _sca, float _pitch, float _roll, float _yaw, ComponentManager _components);
 	void update(glm::vec3 _pos, glm::vec3 _sca, float _pitch, float _roll, float _yaw);
+
+	virtual void OnCollide(Collision collision);
+	virtual void OnStart();
+	virtual void OnRaycast(RayHit RayData);
+	virtual void OnFixedUpdate(float deltaTime);
+
 	void ChangeScene(std::string name);
 	std::string getNewScene();
 	void resetNewScene();
+
 	void ChangeUI(std::string name);
 	std::string getNewUI();
 	void resetNewUI();
+
 	void ExitGame();
 	bool getExit();
+
 	void SetCursorVisible(bool val);
 	bool GetCursorVisible();
-	void update(glm::vec3 _pos, glm::vec3 _sca, float _pitch, float _roll, float _yaw, ComponentManager _components);
+
 
 	std::vector<std::string> getDebugText();
-
-
 	void DebugPrint(std::string text = "");
 
 	DataStorage getScriptData();
 	void setScriptData(DataStorage ds, GLFWwindow * _window);
-
 	void setScriptWindow(GLFWwindow * _window);
 
 
 	bool AddInterfaceReference(std::string s);
-
 	std::map<std::string, InterfaceItem*>* GetInterfacePointers();
-
+	InterfaceItem * GetInterfacePointer(std::string id);
 	std::vector<std::string>* getNewInterfaceRefs();
 
 
@@ -243,11 +248,9 @@ public:
 	void SpawnActor(std::string name, glm::vec3 position, glm::vec3 scale, float roll, float pitch, float yaw);
 
 	glm::vec3 GetLinearVelocity();
-
 	void SetLinearVelocity(glm::vec3 velocity);
 
 	glm::vec3 GetAngularVelocity();
-
 	void SetAngularVelocity(glm::vec3 velocity);
 
 
@@ -270,10 +273,14 @@ public:
 	void Raycast(glm::vec3 origin, glm::vec3 direction);
 	void Raycast(glm::vec3 origin, glm::vec3 direction, float length);
 	void Raycast(glm::vec3 origin, glm::vec3 direction, float length, float increments);
+
 	void updateKeys();
+
 	bool KeyPressed(int key_id);
+
 	bool KeyDown(int key_id);
 	bool MouseDown(int mouse_id);
+
 	std::string GetName();
 	glm::vec3 GetPosition();
 	glm::vec3 GetScale();
@@ -288,13 +295,10 @@ public:
 	void SetScale(glm::vec3 _sca);
 	void Move(glm::vec3 amount);
 	void Scale(glm::vec3 scalars);
-	virtual void OnCollide(Collision collision);
-	virtual void OnStart();
-	virtual void OnRaycast(RayHit RayData);
-	virtual void OnUpdate();
-	virtual void OnFixedUpdate(float deltaTime);
+
+
 	//Variables
-	ComponentManager getComponents();
+	ComponentManager* GetComponents();
 	void setComponents(ComponentManager _components);
 
 	void NewVariable(std::string name, int value);
@@ -368,7 +372,6 @@ private:
 	float deltaTime;
 	float enabled;
 	GLFWwindow *window;
-	Scene *scene = nullptr;
 	bool deleteObj = false;
 	bool exit = false;
 
@@ -385,10 +388,6 @@ private:
 
 	std::vector<RayHit> raycasts;
 	std::vector<Actor> newActors;
-
-
-	std::vector<ImpulseTransfer> newImpulses;
-
 
 	std::map<std::string, int> variable_int;
 	std::map<std::string, unsigned int> variable_uint;

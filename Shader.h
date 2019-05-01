@@ -5,6 +5,8 @@
 #include <fstream>
 #include <iostream>
 
+#include <vector>
+
 #include "GLM/glm.hpp"
 #include "GLM/gtc/type_ptr.hpp"
 
@@ -17,6 +19,8 @@ public:
 
 	Shader(const GLchar* vertexShaderPath, const GLchar* fragShaderPath);
 	Shader(const GLchar * vertexShaderPath, const GLchar * geomShaderPath, const GLchar * fragShaderPath);
+	void CompileProgram(std::vector<unsigned int> shaders);
+	void generateShader(unsigned int & id, const char * code, int shader_type);
 	void use();
 	void setM4FV(const std::string &uniformName, glm::mat4 matrix);
 	void setV3F(const std::string &uniformName, float x, float y, float z) const;

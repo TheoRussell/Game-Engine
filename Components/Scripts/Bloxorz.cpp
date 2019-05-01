@@ -19,12 +19,17 @@ Bloxorz::Bloxorz() {
 Bloxorz::~Bloxorz() {
 	//Appropriately clearing the sound from memory.
 	AudioSource::remove(music_source);
+	ClearClicks();
+}
+
+void Bloxorz::ClearClicks() {
+	
 	for (int id : buttonClickSources) {
 		AudioSource::remove(id);
 	}
 	buttonClickSources.clear();
-
 }
+
 
 void Bloxorz::OnStart() {
 	menu = (MenuView)VariableGetInt("menu");
@@ -135,7 +140,7 @@ void Bloxorz::InterfaceInteraction() {
 
 bool Bloxorz::ButtonPressed(std::string refID) {
 	try {
-		UIButton * button = dynamic_cast<UIButton*>(GetInterfacePointers()->at(refID));
+		UIButton * button = dynamic_cast<UIButton*>(GetInterfacePointer(refID));
 		if (button != nullptr) {
 			if (button->Clicked) {
 				button->Clicked = false;
@@ -164,6 +169,8 @@ void Bloxorz::Play() {
 }
 
 void Bloxorz::ButtonClick() {
+	ClearClicks();
+
 	int audioSource = AudioSource::generate();
 	buttonClickSources.push_back(audioSource);
 	AudioSource::playAudio(audioSource, AudioStream::GetBuffer("button"));

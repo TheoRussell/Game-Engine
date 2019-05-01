@@ -4,6 +4,7 @@
 
 AudioEngine::AudioEngine()
 {
+	///Setting up OpenAL.
 	ALboolean canEnumerate;
 	canEnumerate = alcIsExtensionPresent(NULL, "ALC_ENUMERATION_EXT");
 	if (canEnumerate == AL_FALSE) {
@@ -14,6 +15,7 @@ AudioEngine::AudioEngine()
 		//list audio devices.
 	}
 	
+	//Creating a io stream to the device.
 	device = alcOpenDevice(NULL);
 	if (!device) {
 		std::cout << "ERROR: Can't connect to device (AUDIOENGINE)" << std::endl;
@@ -56,31 +58,27 @@ unsigned int AudioEngine::newSource(std::string name) {
 }
 
 void AudioEngine::update(Scene &scene) {
+	//Fetching the user's position.
 	Object o = scene.getObject(scene.getCamera(true).componentTransform.objID);
-
+	//Updating OpenAL to know where the player is in 3D space.
 	setListenerPos(o.pos.x, o.pos.y, o.pos.z);
+	//Update direction of player.
 	glm::vec3 forward = o.GetForward();
 	ALfloat listenerOri[] = { forward.x,forward.y,forward.z, 0.0f, 1.0f, 0.0f };
 	alListenerfv(AL_ORIENTATION, listenerOri);
-
-	//for (std::pair<std::string, ALuint> audioSource : audioSources) {
-	//	if (AudioSource::checkState(audioSource.second) != AL_PLAYING) {
-	//		audioSources.erase(audioSource.first);
-	//		break;
-	//	}
-	//}
 }
 
 
 
 void AudioEngine::clean() {
+	//Removing all the audio buffers and sources.
 	AudioStream::Clean();
 
 	for (std::pair<std::string, ALuint> as : audioSources) {
 		AudioSource::remove(as.second);
 	}
 	audioSources.clear();
-
+	//Closing the OpenAL context.
 	device = alcGetContextsDevice(context);
 	alcMakeContextCurrent(NULL);
 	alcDestroyContext(context);

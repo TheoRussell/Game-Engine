@@ -2,12 +2,14 @@
 
 
 int AudioSource::generate() {
+	//Uses OpenAL to generate a source buffer.
 	alGetError();
 	ALuint sourceID;
 	alGenSources((ALuint)1, &sourceID);
 	if (alGetError() != AL_NO_ERROR) {
 		std::cout << "Error generating audio source" << std::endl;
 	}
+	//The source has a position, velocity, pitch and gain.
 	alSourcef(sourceID, AL_PITCH, 1.0f);
 	alSourcef(sourceID, AL_GAIN, 1.0f);
 	alSource3f(sourceID, AL_POSITION, 0.0f, 0.0f, 0.0f);
@@ -18,11 +20,13 @@ int AudioSource::generate() {
 
 
 void AudioSource::remove(unsigned int sourceID) {
+	//Sources must be removed as there can only be a max of 32 being used at once.
 	stopAudio(sourceID);
 	alDeleteSources(1, &sourceID);
 }
 
 void AudioSource::playAudio(int sourceID, int bufferID) {
+	//Plays the audio buffer bound to the source.
 	stopAudio(sourceID);
 	if (bufferID >= 0) {
 		alGetError();
@@ -38,6 +42,7 @@ void AudioSource::playAudio(int sourceID, int bufferID) {
 		}
 	}
 	else {
+		//Occurs if no buffer is bound (-1).
 		std::cout << "Invalid buffer." << std::endl;
 	}
 
@@ -45,6 +50,7 @@ void AudioSource::playAudio(int sourceID, int bufferID) {
 }
 
 int AudioSource::checkState(int sourceID) {
+	//Returns the state of the source. ie, (Playing, Paused, Stopped).
 	ALint source_state;
 	alGetSourcei(sourceID, AL_SOURCE_STATE, &source_state);
 	return source_state;
@@ -111,11 +117,12 @@ void AudioSource::setMaxDistance(int sourceID, float factor) {
 
 
 
-
+//A global variable, storing all audio buffers. (The only global variable in the code).
 std::map<std::string, int> AudioStream::_audio_buffers_;
 
 
 void AudioStream::Clean() {
+	//Deletes all audio buffers.
 	for (std::pair<std::string, int> af : _audio_buffers_) {
 		alDeleteBuffers(1, (ALuint*)af.second);
 	}
@@ -123,6 +130,7 @@ void AudioStream::Clean() {
 }
 
 int AudioStream::GetBuffer(std::string name) {
+	//Returns an audio buffer based on its string id in the dictionary (map).
 	if (_audio_buffers_.find(name) != _audio_buffers_.end()) {
 		return (int)_audio_buffers_.at(name);
 	}
@@ -130,5 +138,6 @@ int AudioStream::GetBuffer(std::string name) {
 }
 
 void AudioStream::AddBuffer(std::string name, int buffer) {
+	//Pushes a new buffer to the audio buffer map.
 	_audio_buffers_.insert(std::pair<std::string, int>(name, buffer));
 }

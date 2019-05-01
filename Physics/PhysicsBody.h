@@ -3,11 +3,6 @@
 #include "LineCollider.h"
 
 
-struct Impulse {
-	glm::vec3 force = glm::vec3(0.0f, 0.0f, 0.0f); //net force (N).
-	float time = 1.0f; //how long it's applied (seconds).
-};
-
 class PhysicsBody
 {
 public:
@@ -29,8 +24,6 @@ public:
 	float mass = 50.0f;
 	glm::vec3 linear_velocity = glm::vec3(0.0f);
 	glm::vec3 angular_velocity = glm::vec3(0.0f);
-
-	std::vector<Impulse> Impulses;
 
 private:
 

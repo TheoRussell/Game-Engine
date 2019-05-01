@@ -14,15 +14,15 @@ public:
 	Model(std::string name, char * path, std::vector<Material> mats);
 	void reset();
 	void setMesh(Mesh mesh);
-	void genID();
 	Model();
 	void draw(Shader shader);
 	void draw(Shader shader, unsigned int render_mode);
-	void drawInstanced(Shader shader, int count);
+
 	void getMaterials(std::string &path, std::vector<Material> &materials);
 
 
 	bool loadModel(std::string path, std::string mat_path);
+	glm::vec3 getVecFromString(std::string path, std::string token);
 	~Model();
 	std::string getName();
 	std::string getPathName();

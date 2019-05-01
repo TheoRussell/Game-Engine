@@ -1,7 +1,4 @@
-
 #include "ComponentScript.h"
-
-
 
 
 ComponentScript::ComponentScript()
@@ -125,6 +122,7 @@ void ComponentScript::DebugPrint(std::string text) {
 
 DataStorage ComponentScript::getScriptData()
 {
+	//Returns the script variables to the object class that owns it to save them for the next game tick.
 	DataStorage ds;
 	ds.variable_int = getAllVarInts();
 	ds.variable_uint = getAllVarUInts();
@@ -135,6 +133,7 @@ DataStorage ComponentScript::getScriptData()
 	return ds;
 }
 void ComponentScript::setScriptData(DataStorage ds, GLFWwindow *_window) {
+	//Transfers the correct script variables to the script for the current tick.
 	setAllVarInts(ds.variable_int);
 	setAllVarUInts(ds.variable_uint);
 	setAllVarFloats(ds.variable_float);
@@ -160,6 +159,11 @@ bool ComponentScript::AddInterfaceReference(std::string s) {
 std::map<std::string, InterfaceItem*>* ComponentScript::GetInterfacePointers() {
 	return &UI_elements;
 }
+
+InterfaceItem* ComponentScript::GetInterfacePointer(std::string id) {
+	return UI_elements.at(id);
+}
+
 
 std::vector<std::string>* ComponentScript::getNewInterfaceRefs()
 {
@@ -274,9 +278,8 @@ void ComponentScript::Raycast(glm::vec3 origin, glm::vec3 direction, float lengt
 
 void ComponentScript::updateKeys()
 {
-	for (int i = 0; i <= 250; i++) {
-		//if (ImGui::IsKeyPressed(i)) {
-		if (glfwGetKey(window,i)) {
+	for (int i = 0; i <= 350; i++) {
+		if (glfwGetKey(window,i) == GLFW_PRESS) {
 			keys[i] = true;
 		}
 		else {
@@ -288,10 +291,12 @@ void ComponentScript::updateKeys()
 bool ComponentScript::KeyPressed(int key_id) {
 	if (key_id >= 0 && key_id <= 350) {
 		try {
-			std::cout << keys[key_id] << "," << glfwGetKey(window, key_id) << std::endl;
 			if (glfwGetKey(window, key_id) == GLFW_RELEASE) {
 				if (keys[key_id] == true) {
 					return true;
+				}
+				else {
+					keys[key_id] = true;
 				}
 			}
 		}
@@ -552,9 +557,9 @@ void ComponentScript::SetYaw(float degree) {
 	yaw = degree;
 }
 
-ComponentManager ComponentScript::getComponents()
+ComponentManager* ComponentScript::GetComponents()
 {
-	return components;
+	return &components;
 }
 
 void ComponentScript::setComponents(ComponentManager _components)
@@ -580,10 +585,6 @@ void ComponentScript::SetPosition(glm::vec3 _pos) {
 
 void ComponentScript::SetScale(glm::vec3 _sca) {
 	sca = _sca;
-}
-
-void ComponentScript::OnUpdate() {
-	
 }
 
 void ComponentScript::OnFixedUpdate(float deltaTime)

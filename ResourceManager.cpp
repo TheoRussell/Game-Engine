@@ -4,14 +4,16 @@
 
 ResourceManager::ResourceManager()
 {
+	//The default shaders used by my engine.
 	Shader LightShader("src\\shaders\\vertex.vert", "src\\shaders\\fragment.frag");
 	shaders.push_back(LightShader);
 
 	Shader BaseShader("src\\shaders\\vertex.vert", "src\\shaders\\fragment.frag");
 	shaders.push_back(BaseShader);
 
+	//Adds a defualt model.
 	newModel("DEFAULT","src\\models\\block.obj", "default_diffuse.png", "default_specular.png");
-
+	//Clears the viewport.
 	glClearColor(0.1f, 0.6f, 0.6f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
@@ -23,6 +25,18 @@ void ResourceManager::clearDisplay() {
 
 ResourceManager::~ResourceManager()
 {
+	end();
+}
+
+void ResourceManager::end() {
+	//Deletes the OpenGL shader programs.
+	for (Shader s : shaders) {
+		s.deleteProgram();
+	}
+}
+
+void ResourceManager::reset() {
+	models.clear();
 }
 
 Model ResourceManager::getModel(unsigned int ID)
@@ -34,43 +48,20 @@ std::vector<Model> ResourceManager::getModels() {
 	return models;
 }
 
-unsigned int ResourceManager::add(Model* m) {
+unsigned int ResourceManager::addModel(Model* m) {
 	models.push_back(*m);
 	return models.size() - 1;
 }
 
-void ResourceManager::reset() {
-	models.clear();
-}
+
 
 void ResourceManager::setMatrices(glm::mat4 _view, glm::mat4 _proj) {
+	//Updates projection matrices for the viewport.
 	w_view = _view;
 	w_projection = _proj;
 }
 
-void ResourceManager::end() {
-	for each (Shader s in shaders) {
-		s.deleteProgram();
-	}
-}
 
-void ResourceManager::render(unsigned int sceneID) {
-	currentSceneID = sceneID;
-	render();
-}
-
-void ResourceManager::render() {
-	Scene s = scenes[currentSceneID];
-	render(s);
-}
-
-void ResourceManager::render(Scene &s) {
-	render(s, glm::vec3(0.0f,0.0f,0.0f));
-}
-
-void ResourceManager::render(Scene &s, glm::vec3 player_pos) {
-	render(s, player_pos, true);
-}
 
 void ResourceManager::render(Scene &s, glm::vec3 player_pos, bool InGame) {
 	/* Render here */
@@ -78,22 +69,26 @@ void ResourceManager::render(Scene &s, glm::vec3 player_pos, bool InGame) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); //reset all of the depth planes.
 
 
-	//Objects
-	for (unsigned int i = 0; i < 2; i++) {
+	//Sets shader program data.
+	for (unsigned int i = 0; i < 2; i++) { // 0 & 1 since those are the 2 default shaders.
 		shaders[i].use();
-
 
 		shaders[i].setI("render_mode", 1);
 		shaders[i].setM4FV("view", w_view);
+		shaders[i].setV3F("viewPos", player_pos.x, player_pos.y, player_pos.z);
 		shaders[i].setM4FV("projection", w_projection);
+
+		//Adds directional light.
 		shaders[i].setV3F("l_directional.direction", 0.0f, -1.0f, 0.0f);
 		shaders[i].setV3F("l_directional.ambient", s.d_ambient.x, s.d_ambient.y, s.d_ambient.z);
 		shaders[i].setV3F("l_directional.diffuse", s.d_diffuse.x, s.d_diffuse.y, s.d_diffuse.z);
 		shaders[i].setV3F("l_directional.specular", s.d_specular.x, s.d_specular.y, s.d_specular.z);
+		//Binding point light data.
 		unsigned int index = 0;
 		bool light = true;
-		for each (Object obj in s.getObjects()) {
-			for each (PLightComponent pl in obj.components.getPointLights()) {
+		for (Object obj : s.getObjects()) {
+			for (PLightComponent pl : obj.components.getPointLights()) {
+				//PL must be active and visible.
 				if (pl.light.isActive() && pl.componentTransform.visible) {
 					shaders[i].setV3F("l_points[" + std::to_string(index) + "].position", pl.componentTransform.position.x + obj.pos.x, pl.componentTransform.position.y + obj.pos.y, pl.componentTransform.position.z + obj.pos.z);
 					shaders[i].setV3F("l_points[" + std::to_string(index) + "].ambient", pl.light.getAmbient().x, pl.light.getAmbient().y, pl.light.getAmbient().z);
@@ -108,6 +103,7 @@ void ResourceManager::render(Scene &s, glm::vec3 player_pos, bool InGame) {
 			}
 		}
 		if (index < 100) {
+			//Clears point lights if they aren't in the scene anymore.
 			if (light) {
 				for (int lights = index; lights < 2; lights++) {
 					shaders[i].setV3F("l_points[" + std::to_string(lights) + "].position", 0.0f, 0.0f, 0.0f);
@@ -132,7 +128,6 @@ void ResourceManager::render(Scene &s, glm::vec3 player_pos, bool InGame) {
 	glFrontFace(GL_CW);
 
 	shaders[1].use();
-	shaders[1].setV3F("viewPos", player_pos.x, player_pos.y, player_pos.z);
 	glm::mat4 model(1.0f);
 
 	if (s.getObjectsCount() > 0) {
@@ -194,42 +189,12 @@ bool ResourceManager::renderModel(unsigned int shaderID, unsigned int render_mod
 }
 
 bool ResourceManager::renderModel(unsigned int shaderID, unsigned int render_mode, unsigned int modelID, glm::vec3 pos, glm::vec3 scale, float pitch, float yaw, float roll) {
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	glFrontFace(GL_CW);
-
-	try {
-		shaders[shaderID].use();
-		glm::mat4 model;
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, pos);
-		model = glm::rotate(model, glm::radians(pitch), glm::vec3(1.0f, 0.0f, 0.0f)); //X
-		model = glm::rotate(model, glm::radians(yaw), glm::vec3(0.0f, 1.0f, 0.0f)); //Y
-		model = glm::rotate(model, glm::radians(roll), glm::vec3(0.0f, 0.0f, 1.0f)); //Z
-		model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-		model = glm::scale(model, scale);
-		
-		shaders[1].setV3F("selected", 0.0f, 0.0f, 0.0f);
-		shaders[shaderID].setM4FV("model", model);
-
-		try {
-			models[modelID].draw(shaders[shaderID], render_mode);
-		}
-		catch (std::exception ex) {
-			std::cout << "model no longer present! RM" << std::endl;
-		}
-
-
-		return true;
-	}
-	catch (std::exception ex) {
-		std::cout << "Model render error: " << ex.what() << std::endl;
-		return false;
-	}
+	return renderModel(shaderID, render_mode, models[modelID], pos, scale, pitch, yaw, roll);
 }
 
 
 bool ResourceManager::renderModel(unsigned int shaderID, unsigned int render_mode, Model &inputModel, glm::vec3 pos, glm::vec3 scale, float pitch, float yaw, float roll) {
+	//Very similar to the render procedure however, it does not have a scene object to be position relative to. It is also only a single model rather than multiple components.
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
 	glFrontFace(GL_CW);
@@ -267,24 +232,27 @@ bool ResourceManager::renderModel(unsigned int shaderID, unsigned int render_mod
 
 
 bool ResourceManager::renderTransformers(unsigned int shaderID, Object &selectedObj, EditMode editMode, unsigned int arrowID) {
-	//WANT TO RENDER ABOVE ALL OTHER OBJECTS.
+	//Rendering the selection arrows that appear at objects.
 	glClear(GL_DEPTH_BUFFER_BIT);
 
 	glm::vec3 selectedPos = selectedObj.pos;
 	unsigned int BASEID = arrowID;
 	if (editMode == MOVE) {
+		//Arrow heads.
 		renderModel(0, 1, BASEID, selectedPos, glm::vec3(1.0f,1.0f,1.0f), 0.0f, 0.0f, 0.0f);
 		renderModel(0, 1, BASEID+1, selectedPos, glm::vec3(1.0f, 1.0f, 1.0f), 90.0f, 0.0f, 0.0f);
 		renderModel(0, 1, BASEID+2, selectedPos, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, 0.0f, -90.0f);
 		return true;
 	}
 	else if (editMode == SCALE) {
+		//Block heads.
 		renderModel(1, 1, BASEID+3, selectedPos, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, 0.0f, 0.0f);
 		renderModel(1, 1, BASEID+4, selectedPos, glm::vec3(1.0f, 1.0f, 1.0f), 90.0f, 0.0f, 0.0f);
 		renderModel(1, 1, BASEID+5, selectedPos, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, 0.0f, -90.0f);
 		return true;
 	}
 	else if (editMode == ROTATE) {
+		//Circle transformers.
 		renderModel(1, 1, BASEID+6, selectedPos, glm::vec3(1.0f, 1.0f, 1.0f), 90.0f, 0.0f, 00.0f);
 		renderModel(1, 1, BASEID+7, selectedPos, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, 0.0f, -90.0f);
 		renderModel(1, 1, BASEID+8, selectedPos, glm::vec3(1.0f, 1.0f, 1.0f), 0.0f, 90.0f, 0.0f);
@@ -293,89 +261,11 @@ bool ResourceManager::renderTransformers(unsigned int shaderID, Object &selected
 	return false;
 }
 
-bool ResourceManager::renderObject(unsigned int shaderID, Object obj) {
-	return renderObject(shaderID,1, obj);
-}
-
-bool ResourceManager::renderObject(unsigned int shaderID, unsigned int render_mode, Object obj) {
-
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_FRONT);
-	glFrontFace(GL_CW);
-
-	try {
-		shaders[shaderID].use();
-		glm::mat4 model;
-		model = glm::mat4(1.0f);
-		model = obj.getTransform();
-		if (obj.isSelected()) {
-			shaders[1].setV3F("selected", 0.0f, 0.0f, 0.0f); //Highlighting an object.
-		} 
-		else {
-			shaders[1].setV3F("selected", 0.0f, 0.0f, 0.0f);
-		}
-		shaders[shaderID].setM4FV("model", model);
-
-		for each (ModelComponent mc in obj.components.models) {
-			try {
-				models[mc.model].draw(shaders[shaderID], render_mode);
-			}
-			catch (std::exception ex) {
-				std::cout << "model no longer present! RO" << std::endl;
-			}
-
-		}
 
 
-		return true;
-	}
-	catch (std::exception ex) {
-		std::cout << "Object render error: " << ex.what() << std::endl;
-		return false;
-	}
-}
-
-void ResourceManager::drawLine(glm::vec3 origin, glm::vec3 end) {
-	shaders[1].use();
-	glBegin(GL_LINES);
-	glVertex3f(origin.x, origin.y, origin.z);
-	glVertex3f(end.x, end.y, end.z);
-	glEnd();
-}
-
-unsigned int ResourceManager::addScene(Scene currentScene) {
-	scenes.push_back(currentScene);
-	currentSceneID = scenes.size() - 1;
-	return scenes.size() - 1;
-}
-
-void ResourceManager::setScene(unsigned int ID, Scene currentScene) {
-	if (scenes.size() >= ID && scenes.size() > 0) {
-		scenes[ID] = currentScene;
-	}
-}
-
-void ResourceManager::setViewScene(unsigned int ID) {
-	if (scenes.size() >= ID && scenes.size() > 0) {
-		currentSceneID = ID;
-	}
-}
-
-void ResourceManager::nextViewScene() {
-	if (scenes.size() > 1) {
-		if (currentSceneID > scenes.size() - 2) {
-			currentSceneID = 0;
-		}
-		else {
-			currentSceneID++;
-		}
-	}
-	else {
-		currentSceneID = 0;
-	}
-}
-
+//Models.
 unsigned int ResourceManager::newModel(std::string _name, std::string obj, std::string diffuse, std::string specular) {
+	//Pushes textures to vector.
 	std::vector < std::string > textures;
 	if (diffuse.length() > 0) {
 		textures.push_back(diffuse);
@@ -383,13 +273,15 @@ unsigned int ResourceManager::newModel(std::string _name, std::string obj, std::
 	if (specular.length() > 0) {
 		textures.push_back(specular);
 	}
+	//Generates a new material object based on the textures.
 	Material newMat;
-	newMat.texture_paths.push_back(diffuse);
-	newMat.texture_paths.push_back(specular);
+	newMat.texture_paths = textures;
 
+	//Instantiating a new model.
 	Model model(_name, &obj[0], newMat);
-
+	//Pushes model to models vector.
 	models.push_back(model);
+	//Returns model index.
 	return models.size() - 1;
 }
 
@@ -400,22 +292,10 @@ unsigned int ResourceManager::newModel(std::string _name, std::string obj) {
 	return models.size() - 1;
 }
 
-
-void ResourceManager::drawBlock(Shader s,unsigned int ID, glm::vec3 pos) {
-	if (ID  != 0) {
-		Model m = getModel(ID - 1);
-		glm::mat4 model = glm::mat4(1.0f);
-		model = glm::translate(model, pos);
-		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
-		s.setM4FV("model", model);
-		m.draw(s);
-	}
-}
-
-
-//Actors
+//Actors.
 Object ResourceManager::getActor(std::string name, std::map<std::string, float>* debug) {
-	for each (Object a in actors) {
+	//Returns the requested actor.
+	for (Object a : actors) {
 		if (a.name == name) {
 			return a;
 		}
@@ -430,11 +310,14 @@ std::vector<Object> ResourceManager::getActors() {
 }
 
 void ResourceManager::destroyActor(std::string name) {
+	//Iterates through the actors vector until an actor is found with the parameter name.
 	unsigned int index = 0;
-	for each (Object act in actors) {
+	for (Object act : actors) {
 		if (act.name == name) {
+			//Erases the actor from the list.
 			actors.erase(actors.begin() + index);
 			if (index > 0) {
+				//Selects the next actor in the list.
 				index--;
 				actors[index].select();
 			}
@@ -445,8 +328,9 @@ void ResourceManager::destroyActor(std::string name) {
 }
 
 int ResourceManager::selectedActor() {
+	//iterates through each actor till the selected actor is found. Returns the actors index.
 	unsigned int index = 0;
-	for each (Object act in actors) {
+	for (Object act : actors) {
 		if (act.isSelected()) {
 			return index;
 		}
@@ -469,13 +353,6 @@ void ResourceManager::newActor(std::string name, Object actor, std::string worki
 	for (Object act : actors) {
 		if (act.name == name) {
 			count++;
-		}
-		else if (act.name.find(name) != std::string::npos) {
-			std::string temp = act.name;
-			temp.erase(temp.length() - (temp.length() - name.length()), (temp.length() - name.length()));
-			if (temp == name) {
-				count++;
-			}
 		}
 	}
 	if (count > 0) {

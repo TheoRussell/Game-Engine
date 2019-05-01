@@ -32,9 +32,14 @@ public:
 	void OnStart();
 	void OnUpdate(float deltaTime, ClientHandler & client, PhysicsEngine & physics, ResourceManager & res);
 
+	void FrameSizeChange(int width, int height);
+
 	void changeUI(ClientHandler & client, PhysicsEngine & physics, std::string name);
 	void deleteUI(ClientHandler & client, std::string name);
 	void NormalDesign();
+
+	
+
 	void Menu(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
 
 	bool loadInterface(std::string path, ClientHandler & client, PhysicsEngine & physics);
@@ -68,10 +73,12 @@ public:
 	void displayScenes(ClientHandler & client, PhysicsEngine & physics);
 	void displayWorld(ClientHandler & client, PhysicsEngine & physics);
 	void displaySelectedObj(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res);
-	std::string inputText(std::string value, std::string id);
+
+	void GetStringInput(std::string label, std::string & text, int length, std::vector<char> bannedChars);
 	glm::vec4 inputColour(std::string id, glm::vec4 original, bool opaque);
 	glm::vec3 inputVec3(std::string id, glm::vec3 original);
 	float inputFloat(std::string id, float original, float smallStep, float quickStep);
+
 	void deselectAllComponents(Object & obj);
 	void displayNewComponent(ClientHandler & client, PhysicsEngine & physics, ResourceManager & res, ScriptManager & scripts);
 
@@ -151,7 +158,8 @@ private:
 	bool showImport = false;
 	bool showNewComponent = false;
 	unsigned int component_type = 0;
-	char component_name[255] = "";
+	std::string component_name = "";
+	
 	unsigned int modelID = 0;
 	bool showReloadScreen = false;
 	bool saveScene = true;

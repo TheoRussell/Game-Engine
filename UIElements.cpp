@@ -102,6 +102,7 @@ bool UIElements::loadUI(std::ifstream &input) {
 
 
 std::string UIElements::intToChar(int v) {
+	//Converting asci values into their character.
 	if (v >= 10) {
 		char asciiVal = 55 + v;
 		std::string val;

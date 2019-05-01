@@ -36,7 +36,6 @@ public:
 	void bindMaterials(Shader shader);
 	void draw(Shader shader, unsigned int render_mode);
 	void draw(Shader shader);
-	void drawInstanced(Shader shader, int count);
 	~Mesh();
 
 	std::string savedName = "";

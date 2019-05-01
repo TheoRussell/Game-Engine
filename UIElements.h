@@ -2,6 +2,9 @@
 
 #define UIELEMENT_H
 
+
+#include <GLM\glm.hpp>
+
 #include "imgui\imgui.h" //Gui
 #include "imgui\imgui_impl_glfw_gl3.h" //Example imgui
 
@@ -623,6 +626,11 @@ public:
 		type = s_Label;
 	}
 
+	void UpdateSize(int width, int height) {
+		uiH = height;
+		fontSize = screenProportion * uiH;
+	}
+
 	bool Load(std::ifstream& input) override {
 		try {
 			vertices.clear();
@@ -630,7 +638,6 @@ public:
 			vertices.push_back(BinaryFiles::getVec2(input));
 			text = BinaryFiles::getString(input);
 			screenProportion = BinaryFiles::getFloat(input);
-			std::cout << screenProportion << "," << uiH << std::endl;
 			fontSize = screenProportion * uiH;
 
 			FillColour = BinaryFiles::getVec4(input);
@@ -654,6 +661,7 @@ public:
 			BinaryFiles::writeString(file, id);
 			BinaryFiles::writeVec2(file, vertices[0]);
 			BinaryFiles::writeString(file, text);
+			screenProportion = fontSize / uiH;
 			BinaryFiles::writeFloat(file, screenProportion);
 			BinaryFiles::writeVec4(file, FillColour);
 			BinaryFiles::writeVec4(file, foreColour);
@@ -674,7 +682,6 @@ public:
 
 
 	void Render(int uiWidth, int uiHeight, float UIEx, float UIEy, float UIEzoom, float xDisplacement) override {
-		screenProportion = fontSize / uiHeight;
 		uiH = uiHeight;
 
 		ImFont *font = ImGui::GetFont();

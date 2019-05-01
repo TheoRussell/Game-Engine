@@ -5,6 +5,7 @@ class Bloxorz : public ComponentScript {
 public:
 	Bloxorz();
 	~Bloxorz();
+	void ClearClicks();
 	void OnStart() override;
 	void UpdateMusic();
 	void OnFixedUpdate(float deltaTime) override;

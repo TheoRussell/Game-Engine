@@ -18,6 +18,7 @@ PhysicsEngine::~PhysicsEngine()
 
 
 void PhysicsEngine::updateKeys() {
+	//Updates each script to have a boolean array for each of the keys and if they are down.
 	for (std::pair<std::string, ComponentScript*> cs : scripts) {
 		try {
 			cs.second->setScriptWindow(window);
@@ -30,10 +31,11 @@ void PhysicsEngine::updateKeys() {
 }
 
 void PhysicsEngine::start(Scene &scene, GLFWwindow * _window) {
+	//Initiates all the scripts.
 	window = _window;
 
 	unsigned int id = 0;
-	for each (Object obj in scene.getObjects()) {
+	for (Object obj : scene.getObjects()) {
 		for (std::string script : obj.componentScriptIDs) {
 			try {
 				obj.startScript(scripts.at(script), script, window);
@@ -52,7 +54,7 @@ void PhysicsEngine::start(Scene &scene, GLFWwindow * _window) {
 void PhysicsEngine::OnStart(Scene &scene, GLFWwindow * _window) {
 	window = _window;
 
-	//updateKeys();
+	updateKeys();
 
 	unsigned int id = 0;
 	for each (Object obj in scene.getObjects()) {
@@ -73,7 +75,7 @@ void PhysicsEngine::OnStart(Scene &scene, GLFWwindow * _window) {
 
 void PhysicsEngine::ChangeScene(Scene &scene, std::string path) {
 	scene.loadBinary(path);
-	//Here is where the user could include a loading screen if it wasn't so speedy.
+	//Here is where the user could include a loading screen.
 }
 
 
@@ -86,32 +88,24 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 	newActorRequest = false;
 	unsigned int i = 0;
 	for (Object obj : scene.getObjects()) {
+		//Will only run the code if the physics body is enabled.
 		if (obj.physicsBody.enabled) {
 			obj.physicsBody.update(obj.getTransformStruct());
 
 			glm::vec3 RESULTANT_FORCE(0.0f);
 			glm::vec3 RESULTANT_ANGULAR(0.0f);
 
-			//Impulse imp;
-			//imp.time = 5.0f;
-			//imp.force = glm::vec3(0.0f, 10.0f, 1000.0f);
-			//imp.time -= deltaTime;
-			//RESULTANT_FORCE += imp.force;
-
 			//Update scripts.
 			for (std::string script : obj.componentScriptIDs) {
+				//Finds the script references in the object, from the physics scripts vector.
 				if (scripts.find(script) != scripts.end()) {
 					if (obj.componentScriptData.find(script) != obj.componentScriptData.end()) {
+						//Checks if the script is enabled in the object.
 						if (obj.componentScriptData.at(script).enabled) {
 							try {
+								//Transfers object data and obj specific variables to script, and then updates it.
 								obj.raycasts.clear();
-								if (deltaTime == -1) {
-									obj.OnUpdate(scripts.at(script), script, window);
-								}
-								else {
-									obj.OnFixedUpdate(scripts.at(script), script, window, deltaTime);
-								}
-
+								obj.OnFixedUpdate(scripts.at(script), script, window, deltaTime);
 
 							}
 							catch (std::exception ex) {
@@ -119,9 +113,12 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 							}
 
 							try {
-								for each (RayHit rc in obj.raycasts) {
+								//For any raycast calls from the script, it runs the raycast function.
+								for (RayHit rc : obj.raycasts) {
 									Collision c = RayCast(scene, obj, rc.length, rc.increments, rc.origin, rc.direction);
+									//^^ Returns a Hit structure for if the raycast intercepted any collision boxes.
 									if (c.collided) {
+										//If the collision occured, then the script's OnRaycast overridable function is called.
 										rc.collision = c;
 										obj.OnRaycast(rc, scripts[script], script, window);
 										break;
@@ -133,6 +130,7 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 								std::cout << "could not run script raycasting." << std::endl;
 							}
 
+							//Checks if the script calls for a new scene or GUI.
 							if (obj.newUI != "") {
 								newUI = obj.newUI;
 								scripts[script]->resetNewUI();
@@ -166,17 +164,17 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 				}
 
 
-				for each (BoxCollider objBox in obj.physicsBody.coll_Box) {
+				for (BoxCollider objBox : obj.physicsBody.coll_Box) {
 					unsigned int index = 0;
 					std::vector<Collision> collisions;
 					collisions.clear();
 					objBox.translate(obj.getTransformStruct(), objBox); //Translate bounds according to object.
 
 																		//Detecting collisions.
-					for each (Object colliderObj in scene.getObjects()) {
+					for (Object colliderObj : scene.getObjects()) {
 						if (index != i && obj.distanceTo(colliderObj.pos) < 20.0f) { //Must be in a range of 20 m for it to check collisions.
 																					 //Checks if the objects are the same in the loop.
-							for each (BoxCollider collider in colliderObj.physicsBody.coll_Box) {
+							for (BoxCollider collider : colliderObj.physicsBody.coll_Box) {
 
 								collider.translate(colliderObj.getTransformStruct(), collider); //Translate bounds according to object.
 
@@ -184,12 +182,7 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 								float yaw = colliderObj.getTransformStruct().yaw;
 								float roll = colliderObj.getTransformStruct().roll;
 								Collision c;
-								if ((int)pitch % 360 > 0.0f || (int)pitch % 360 < 0.0f || (int)yaw % 360 > 0.0f || (int)yaw % 360 < 0.0f || (int)roll % 360 > 0.0f || (int)roll % 360 < 0.0f) {
-									c = checkBoxCollision(objBox, collider, roll, pitch, yaw);
-								}
-								else {
-									c = checkBoxCollision(objBox, collider);
-								}
+								c = checkBoxCollision(objBox, collider);
 
 
 								if (c.collided) {
@@ -214,7 +207,7 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 						index++;
 					}
 					//Running collision scripts.
-					for each (Collision c in collisions) {
+					for (Collision c : collisions) {
 						Object* hit_obj = &scene.objects[c.objID];
 						for (std::string scriptID : hit_obj->componentScriptIDs) {
 							if (scripts.find(scriptID) != scripts.end()) {
@@ -293,6 +286,7 @@ void PhysicsEngine::update(Scene &scene, float deltaTime, std::string PROJpath) 
 
 
 																//Rotation
+			//Similar process to forces, just changes rotation.
 			for (glm::vec3 torque : obj.torques) {
 				RESULTANT_ANGULAR += torque;
 			}
@@ -334,6 +328,7 @@ void PhysicsEngine::load(std::string name, Scene &scene) {
 }
 
 std::string PhysicsEngine::addScript(ComponentScript* script) {
+	//Adds a script pointer to the vector of scripts.
 	scripts.insert(std::pair<std::string, ComponentScript*>(script->GetName(),script));
 	return script->GetName();
 }
@@ -351,18 +346,21 @@ Collision PhysicsEngine::RayCast(Scene &scene, Object obj, float distance, float
 	ray.increments = increments;
 	unsigned int id = 0;
 	std::vector<Collision> collisions;
-	for each (Object box in scene.getObjects()) {
+	for (Object box : scene.getObjects()) {
+		//Checks if the object and box are the same.
 		if (box.pos != obj.pos) {
 			if (box.physicsBody.collides) {
 				Collision col;
 				//Will only work if it wants to be collided.
 
-					for each (BoxCollider boxc in box.physicsBody.coll_Box) {
+					for (BoxCollider boxc : box.physicsBody.coll_Box) {
+						//Translates the box collider to the object's position and scale etc.
 						boxc.translate(box.getTransformStruct(), boxc);
 						if (obj.distanceTo(boxc.position) <= ray.distance) {
+							//Calculates the distance between the ray and box. Must be less than the maximum length of the raycast.
 							col = checkLineCollision(ray, boxc);
+							//Checks if a collision occurs.
 							if (col.collided) {
-								std::cout << col.impact_position.x << "," << col.impact_position.y << "," << col.impact_position.z << std::endl;
 								col.objID = id;
 								collisions.push_back(col);
 								break; //Only detect one physics collision per object.
@@ -377,8 +375,9 @@ Collision PhysicsEngine::RayCast(Scene &scene, Object obj, float distance, float
 	}
 
 	Collision c;
-	float distanceTo = 10000.0f;
-	for each (Collision col in collisions) {
+	float distanceTo = 1000000.0f;
+	//Retrieving the closest collision to the raycast's origin.
+	for (Collision col : collisions) {
 		//Gets the closest collision.
 		float dist = obj.distanceTo(scene.getObject(col.objID).pos);
 		if (dist < distanceTo) {
@@ -392,15 +391,19 @@ Collision PhysicsEngine::RayCast(Scene &scene, Object obj, float distance, float
 Collision PhysicsEngine::checkLineCollision(LineCollider &line, BoxCollider &box) {
 	glm::vec3 currentPos;
 	Collision c;
+	//Iterates through a fixed step between the origin and the direction / end point.
 	for (float d = 0; d <= line.distance * 100; d += line.increments * 100) {
 		currentPos = line.origin + (line.direction * (float)(d / 100));
+		//Checks if the tip / vertex of the raycast line is within the box collision mesh.
 		if (currentPos.x <= box.maxX && currentPos.x >= box.minX) {
 			if (currentPos.y <= box.maxY && currentPos.y >= box.minY) {
 				if (currentPos.z <= box.maxZ && currentPos.z >= box.minZ) {
+					//Calculates the distance intercepted.
 					c.collided = true;
 					c.distanceX = box.maxX - currentPos.x;
 					c.distanceY = box.maxY - currentPos.y;
 					c.distanceZ = box.maxZ - currentPos.z;
+					//Records the impact position.
 					c.impact_position = currentPos;
 					return c;
 				}
@@ -413,8 +416,8 @@ Collision PhysicsEngine::checkLineCollision(LineCollider &line, BoxCollider &box
 
 Collision PhysicsEngine::checkBoxCollision(BoxCollider &box1, BoxCollider &box2) {
 
-
-	for each (glm::vec3 vertex in box1.corners) {
+	//Checks if any of the vertices in one collision mesh are within the mesh of the other collision box.
+	for (glm::vec3 vertex : box1.corners) {
 		if (vertex.x <= box2.maxX && vertex.x >= box2.minX) {
 			if (vertex.y <= box2.maxY && vertex.y >= box2.minY) {
 				if (vertex.z <= box2.maxZ && vertex.z >= box2.minZ) {
@@ -423,7 +426,7 @@ Collision PhysicsEngine::checkBoxCollision(BoxCollider &box1, BoxCollider &box2)
 					c.distanceX = 0.0f;
 					c.distanceZ = 0.0f;
 					c.distanceY = 0.0f;
-
+					//Calculates the distance to the closest face.
 					if ((box2.maxX - vertex.x) >= (vertex.x - box2.minX)) {
 						c.distanceX = box2.minX - vertex.x;
 						//Lower x bound of box.
@@ -452,206 +455,6 @@ Collision PhysicsEngine::checkBoxCollision(BoxCollider &box1, BoxCollider &box2)
 				}
 			}
 		}
-	}
-	Collision c;
-	c.collided = false;
-	return c;
-}
-
-
-glm::vec3 PhysicsEngine::findMid(std::vector<glm::vec3> &corners) {
-	float lowest = 9999999.9f;
-	float highest = -999999.9f;
-	std::vector<glm::vec3> topCorners;
-	std::vector<glm::vec3> bottomCorners;
-	for each (glm::vec3 vertex in corners) {
-		if (vertex.y < lowest) {
-			lowest = vertex.y;
-			bottomCorners.clear();
-			bottomCorners.push_back(vertex);
-		}
-		else if (vertex.y == lowest) {
-			bottomCorners.push_back(vertex);
-		}
-		if (vertex.y > highest) {
-			highest = vertex.y;
-			topCorners.clear();
-			topCorners.push_back(vertex);
-		}
-		else if (vertex.y == highest) {
-			topCorners.push_back(vertex);
-		}
-	}
-	glm::vec3 top = getBiggestXZ(topCorners);
-	glm::vec3 low = getLowestXZ(bottomCorners);
-	return  glm::vec3((top.x + low.x) / 2, (top.y + low.y) / 2, (top.z + low.z) / 2);
-}
-
-glm::vec3 PhysicsEngine::getBiggestXZ(std::vector<glm::vec3> &corners) {
-	float maxX = -99999.9f;
-	std::vector<glm::vec3> xCorners;
-	for each (glm::vec3 vertex in corners) {
-		if (vertex.x > maxX) {
-			maxX = vertex.x;
-			xCorners.clear();
-			xCorners.push_back(vertex);
-		}
-		else if (vertex.x == maxX) {
-			xCorners.push_back(vertex);
-		}
-	}
-	float maxZ = -99999.9f;
-	std::vector<glm::vec3> zCorners;
-	for each (glm::vec3 vertex in corners) {
-		if (vertex.z > maxZ) {
-			maxZ = vertex.z;
-			zCorners.clear();
-			zCorners.push_back(vertex);
-		}
-		else if (vertex.z == maxZ) {
-			zCorners.push_back(vertex);
-		}
-	}
-	for each (glm::vec3 vertex in xCorners) {
-		for each (glm::vec3 vertex_z in zCorners) {
-			if (vertex == vertex_z) {
-				return vertex;
-			}
-		}
-	}
-	return glm::vec3(0.0f, 0.0f, 0.0f);
-}
-
-glm::vec3 PhysicsEngine::getLowestXZ(std::vector<glm::vec3> &corners) {
-	float maxX = 99999.9f;
-	std::vector<glm::vec3> xCorners;
-	for each (glm::vec3 vertex in corners) {
-		if (vertex.x < maxX) {
-			maxX = vertex.x;
-			xCorners.clear();
-			xCorners.push_back(vertex);
-		}
-		else if (vertex.x == maxX) {
-			xCorners.push_back(vertex);
-		}
-	}
-	float maxZ = 99999.9f;
-	std::vector<glm::vec3> zCorners;
-	for each (glm::vec3 vertex in corners) {
-		if (vertex.z < maxZ) {
-			maxZ = vertex.z;
-			zCorners.clear();
-			zCorners.push_back(vertex);
-		}
-		else if (vertex.z == maxZ) {
-			zCorners.push_back(vertex);
-		}
-	}
-	for each (glm::vec3 vertex in xCorners) {
-		for each (glm::vec3 vertex_z in zCorners) {
-			if (vertex == vertex_z) {
-				return vertex;
-			}
-		}
-	}
-	return glm::vec3(0.0f, 0.0f, 0.0f);
-}
-
-Collision PhysicsEngine::checkBoxCollision(BoxCollider &box1, BoxCollider &box2, float roll, float pitch, float yaw) {
-	//roll = x, pitch = y, yaw = z
-
-	glm::vec3 middle = findMid(box2.corners);
-	float centreX = middle.x;
-	float centreY = middle.y;
-	float centreZ = middle.z;
-
-	float yChangeMin = 0.0f;
-	float xChangeMin = 0.0f;
-	float zChangeMin = 0.0f;
-	float yChangeMax = 0.0f;
-	float xChangeMax = 0.0f;
-	float zChangeMax = 0.0f;
-	roll = (float)((int)roll % 360);
-	pitch = (float)((int)pitch % 360);
-	yaw = (float)((int)yaw % 360);
-	if (roll < 0) {
-		roll = 360 + roll;
-	}
-	if (pitch < 0) {
-		pitch = 360 + pitch;
-	}
-	if (yaw < 0) {
-		yaw = 360 + yaw;
-	}
-	roll = (float)((int)roll % 90);
-	pitch = (float)((int)pitch % 90);
-	yaw = (float)((int)yaw % 90);
-
-	while (roll > 45) {
-		roll = 90 - roll;
-	}
-
-
-	std::cout << roll << std::endl;
-
-
-	for each (glm::vec3 vertex in box1.corners) {
-		float yDiff = vertex.y - centreY;
-		float xDiff = vertex.x - centreX;
-		float zDiff = vertex.z - centreZ;
-		
-		//std::cout << "Z: " << zDiff  << std::endl;
-
-		yChangeMin = tan(glm::radians(roll)) * zDiff;
-		//yChangeMin += tan(glm::radians(-yaw)) * xDiff;
-
-
-
-
-		yChangeMax = tan(glm::radians(roll)) * zDiff;
-		//yChangeMax += tan(glm::radians(yaw)) * xDiff;
-
-		yChangeMin += box2.minY;
-		xChangeMin += centreX;
-		zChangeMin += centreZ;
-		yChangeMax += box2.maxY;
-		xChangeMax += centreX;
-		zChangeMax += centreZ;
-		float temp = 0.0f;
-		if (xChangeMax < xChangeMin) {
-			temp = xChangeMin;
-			xChangeMin = xChangeMax;
-			xChangeMax = temp;
-		}
-		if (zChangeMax < zChangeMin) {
-			temp = zChangeMin;
-			zChangeMin = zChangeMax;
-			zChangeMax = temp;
-		}
-
-		//if (vertex.x <= box2.maxX && vertex.x >= box2.minX) {
-			if (vertex.y <= yChangeMax && vertex.y >= yChangeMin) {
-				//if (vertex.z <= box2.maxZ && vertex.z >= box2.minZ) {
-					Collision c;
-					c.collided = true;
-					c.distanceX = box2.maxX - vertex.x;
-
-					if ((yChangeMax - vertex.y) <= (vertex.y - yChangeMin)) {
-						c.distanceY = yChangeMax - vertex.y;
-					}
-					else {
-						c.distanceY = - (vertex.y - yChangeMin);
-					}
-
-
-
-					c.distanceZ = box2.maxZ - vertex.z;
-					return c;
-				//}
-			}
-		//}
-
-
 	}
 	Collision c;
 	c.collided = false;

@@ -35,7 +35,6 @@ public:
 
 	void startScript(ComponentScript * script, std::string scriptID, GLFWwindow * _window);
 	void OnStart(ComponentScript * script, std::string scriptID, GLFWwindow * _window);
-	void OnUpdate(ComponentScript * script, std::string scriptID, GLFWwindow * _window);
 	void OnFixedUpdate(ComponentScript * script, std::string scriptID, GLFWwindow * _window, float deltaTime);
 	void OnCollide(Collision c, ComponentScript * script, std::string scriptID, GLFWwindow * _window);
 	void OnRaycast(RayHit rc, ComponentScript * script, std::string scriptID, GLFWwindow * _window);

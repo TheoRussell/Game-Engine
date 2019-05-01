@@ -21,11 +21,6 @@ public:
 	Collision RayCast(Scene & scene, Object obj);
 	Collision checkLineCollision(LineCollider & line, BoxCollider & box);
 	Collision checkBoxCollision(BoxCollider & box1, BoxCollider & box2);
-	glm::vec3 findMid(std::vector<glm::vec3> &corners);
-	glm::vec3 getBiggestXZ(std::vector<glm::vec3>& corners);
-	glm::vec3 getLowestXZ(std::vector<glm::vec3>& corners);
-	Collision checkBoxCollision(BoxCollider & box1, BoxCollider & box2, float roll, float pitch, float yaw);
-
 
 	std::map<std::string, ComponentScript*> scripts;
 

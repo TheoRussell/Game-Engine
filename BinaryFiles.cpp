@@ -13,16 +13,20 @@ BinaryFiles::~BinaryFiles()
 
 std::string BinaryFiles::getString(std::ifstream &s) {
 	unsigned int size = 0;
+	//It reads the size of the string message to create the buffer.
 	s.read(reinterpret_cast<char *>(&size), sizeof(size));
 	char *buffer = new char[size];
+	//It then reads the data into the buffer.
 	s.read(buffer, size);
 	std::string result = "";
+	//Appends the buffer into the string.
 	result.append(buffer, size);
 	delete[] buffer;
 	return result;
 }
 
 BINARYWrite BinaryFiles::getBINARYType(std::ifstream &s) {
+	//Binary Types will be used to identify what section of the file is being read (assists error handling).
 	BINARYWrite writeType = BINARY_Label;
 	s.read((char*)(&writeType), sizeof(BINARYWrite));
 	return writeType;
@@ -66,7 +70,9 @@ int BinaryFiles::getInt(std::ifstream &s) {
 
 void BinaryFiles::writeString(std::ofstream &s, std::string &value) {
 	unsigned int size = value.size();
+	//Writes the size of the string buffer to file.
 	s.write(reinterpret_cast<char *>(&size), sizeof(size));
+	//Writes string.
 	s.write(value.c_str(), size);
 }
 

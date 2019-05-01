@@ -16,16 +16,6 @@ struct Component {
 	bool selected = false;
 	unsigned int objID = 0;
 
-	glm::mat4 getTransform() {
-		glm::mat4 result = glm::mat4(1.0f);
-		result = glm::translate(result, position);
-		result = glm::rotate(result, glm::radians(pitch), glm::vec3(1.0f, 0.0f, 0.0f)); //X
-		result = glm::rotate(result, glm::radians(yaw), glm::vec3(0.0f, 1.0f, 0.0f)); //Y
-		result = glm::rotate(result, glm::radians(roll), glm::vec3(0.0f, 0.0f, 1.0f)); //Z
-		result = glm::translate(result, glm::vec3(0.0f,0.0f,0.0f));
-		result = glm::scale(result, scale);
-		return result;
-	}
 	void move(glm::vec3 pos) {
 		position += pos;
 	}
@@ -34,6 +24,7 @@ struct Component {
 	}
 
 	Component operator-(const Component & other) {
+		//Interpolating.
 		Component c;
 		c.position = position - other.position;
 		c.scale = scale - other.scale;
@@ -45,6 +36,7 @@ struct Component {
 	}
 
 	Component operator*(const float & deltaTime) {
+		//Interpolation.
 		Component c;
 		c.position = position * deltaTime;
 		c.scale = scale * deltaTime;

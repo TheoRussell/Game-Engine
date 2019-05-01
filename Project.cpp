@@ -14,6 +14,7 @@ Project::~Project()
 
 void Project::generate(std::string name) {
 	//Generating a start project.
+	//This code is WINDOWS specific.
 	std::string directory = "src\\Projects\\" + name + "\\";
 	CreateDirectory(&directory[0], NULL);
 	directory = "src\\Projects\\" + name + "\\Scenes\\";
@@ -24,8 +25,9 @@ void Project::generate(std::string name) {
 	CreateDirectory(&directory[0], NULL);
 	save("src\\Projects\\" + name + "\\Project");
 
+	//Saving the directory of the project in a variable so that the engine knows where to save actors/ interfaces.
 	directory = "src\\Projects\\" + name + "\\";
-
+	//Sets the new project to be the working directory.
 	setActive();
 }
 
@@ -72,11 +74,13 @@ std::string Project::getActive() {
 		fileName = p.path().string();
 		files.push_back(fileName);
 	}
-	//Finding all the session locks.
+	//Finding the session lock file in each project folder.
 	for (std::string folder : files) {
 		for (auto & p : std::experimental::filesystem::directory_iterator(folder)) {
 			fileName = p.path().string();
 			if (fileName.find("session.lock") != std::string::npos) {
+				//If a project has a session.lock, it must be the active project.
+				//Returns the project directory.
 				fileName.erase(fileName.end() - 12, fileName.end());
 				return fileName;
 				break;
@@ -98,12 +102,13 @@ void Project::setActive() {
 		fileName = p.path().string();
 		files.push_back(fileName);
 	}
-	//Finding all the session locks.
+	//Finding all the session locks and deleting them.
 	for (std::string folder : files) {
 		for (auto & p : std::experimental::filesystem::directory_iterator(folder)) {
 			fileName = p.path().string();
 			if (fileName.find("session.lock") != std::string::npos) {
 				if (remove(fileName.c_str()) != 0) {
+					//Checking errors in deleting the session.lock file.
 					std::cout << "Unable to delete session lock file! Please check permissions." << std::endl;
 					std::cout << fileName << std::endl;
 				}

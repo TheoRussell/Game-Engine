@@ -4,19 +4,15 @@
 
 ComponentManager::ComponentManager()
 {
-
 }
-
 
 ComponentManager::~ComponentManager()
 {
-
 }
-
 
 CamComponent ComponentManager::getCamera() {
 	unsigned int index = 0;
-	for each (CamComponent c in cameras) {
+	for (CamComponent c : cameras) {
 		if (c.camera.enabled) {
 			return c;
 		}

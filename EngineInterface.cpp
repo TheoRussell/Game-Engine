@@ -4,13 +4,14 @@
 
 EngineInterface::EngineInterface()
 {
+	//For selecting an element - know which element it is.
 	selectedTypes.insert(std::pair<UIType, bool>(s_Rectangle, false));
 	selectedTypes.insert(std::pair<UIType, bool>(s_Line, false));
 	selectedTypes.insert(std::pair<UIType, bool>(s_Label, false));
 	selectedTypes.insert(std::pair<UIType, bool>(s_Poly, false));
 	selectedTypes.insert(std::pair<UIType, bool>(s_PBar, false));
 	selectedTypes.insert(std::pair<UIType, bool>(s_Button, false));
-
+	//Set the debug label to have the debug msg style.
 	debug_msg_box.DebugStyle();
 
 }
@@ -153,6 +154,18 @@ void EngineInterface::OnUpdate(float deltaTime, ClientHandler &client, PhysicsEn
 
 }
 
+void EngineInterface::FrameSizeChange(int width, int height) {
+	//Need to change the font size when the screen resolution changes.
+	for (InterfaceItem* item : UIE.Interface_Items) {
+		if (item->GetType() == s_Label) {
+			UILabel* l = dynamic_cast<UILabel*>(item);
+			l->UpdateSize(width, height);
+		}
+		
+	}
+}
+
+
 
 void EngineInterface::changeUI(ClientHandler &client, PhysicsEngine &physics, std::string name) {
 	//Loads a new interface when the engine requests it.
@@ -181,24 +194,46 @@ void EngineInterface::NormalDesign() {
 	style.Colors[ImGuiCol_Button] = ImVec4(0.007, 0.203, 0.572, 1.0f);
 }
 
+void EngineInterface::GetStringInput(std::string label, std::string &text, int length, std::vector<char> bannedChars) {
+	char *txtChar = new char[length];
+	strcpy_s(txtChar, length, text.c_str());
+	ImGui::InputText(label.c_str(), txtChar, length);
+	std::string newValue = txtChar;
+	if (newValue != "") {
+		text = newValue;
+	}
 
-//Top bar of the interface.
+	for (char c : bannedChars) {
+		int position = text.find(c);
+		while (position != std::string::npos) {
+			text.erase(position, 1);
+			position = text.find(c);
+		}
+	}
+
+	delete[] txtChar;
+}
+
+
 void EngineInterface::Menu(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
+	//Top bar of the interface.
 	ImGui::Begin("Menu", (bool*)true, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize);
 	ImGui::SetWindowSize(ImVec2(width, 50));
 	ImGui::SetWindowPos(ImVec2(0, 0));
-
+	//Adds 50 to the y displacement of the GUI.
 	UIEy += 50;
 
 
 	ImGuiStyle & style = ImGui::GetStyle();
 	style.Colors[ImGuiCol_Button] = ImVec4(0.5, 0.001, 0.001, 1.0f);
+	//Exit button.
 	if (ImGui::Button("X")) {
 		client.engineView = Editor; //Goes to editor so that exit may occur.
 		client.closeProgram = true;
 	};
 	ImGui::SameLine();
 
+	//Swap to UI button.
 	if (client.engineView != UIEditor) {
 		ImGui::SameLine();
 		if (ImGui::Button("UI View")) {
@@ -209,11 +244,12 @@ void EngineInterface::Menu(ClientHandler &client, PhysicsEngine &physics, Resour
 		}
 	}
 	else {
+		//Swap to scene inspector button.
 		ImGui::SameLine();
 		if (ImGui::Button("Engine View")) {
 			OnStart(); //Required to update pointers.
 			client.engineView = Editor;
-			client.InEditor = false;
+			client.InGamePreview = false;
 			UIEx_s = UIEx;
 			UIEy_s = UIEy;
 			UIEzoom_s = UIEzoom;
@@ -236,22 +272,14 @@ void EngineInterface::Menu(ClientHandler &client, PhysicsEngine &physics, Resour
 
 		ImGui::SameLine();
 
-		char *txtChar = new char[255];
-		strcpy_s(txtChar, 255, UIE.UIName.c_str());
-		ImGui::InputText("UI Name", txtChar, 255);
-		std::string txtLength = txtChar;
-		if (txtLength.length() > 0) {
-			UIE.UIName = txtChar;
-		}
-		delete[] txtChar;
 
+		GetStringInput("UI Name", UIE.UIName, 255, { '<', '>', ':', '/', '|', '?', '*', '"' });
+		//Saving the GUI.
 		ImGui::SameLine();
 		if (ImGui::Button("Save##saveUI")) {
 			if (!UIEitembox) {
 				saveInterface(client);
 				loadInterface(client.WorkingDir + "Interfaces\\" + UIE.UIName + ".gui", client, physics);
-
-
 			}
 			else {
 				debug_write("Unable to save interface while modifying item!");
@@ -332,39 +360,45 @@ bool EngineInterface::loadInterface(std::string path, ClientHandler & client, Ph
 void EngineInterface::saveInterface(ClientHandler &client) {
 	try {
 		std::ofstream output(client.WorkingDir + "Interfaces\\" + UIE.UIName + ".gui", std::ofstream::out | std::ios::binary);
-		output.clear();
-		UIE.saveAll(output);
+		if (output.good()) {
+			output.clear();
+			UIE.saveAll(output);
 
-		BINARYWrite end = BINARY_END;
+			BINARYWrite end = BINARY_END;
 
-		//Saving script references to file.
-		//Writes count of all scripts, then name of script & number of references for script, then the references.
-		end = BINARY_Script;
-		BinaryFiles::writeBINARYType(output, end);
-		int refCount = scriptInterfacePointers.size();
-		BinaryFiles::writeInt(output, refCount);
-		for (std::pair<ComponentScript*, std::map<std::string, InterfaceItem*>> ref : scriptInterfacePointers) {
-			BinaryFiles::writeString(output, ref.first->GetName());
+			//Saving script references to file.
+			//Writes count of all scripts, then name of script & number of references for script, then the references.
+			end = BINARY_Script;
+			BinaryFiles::writeBINARYType(output, end);
+			int refCount = scriptInterfacePointers.size();
+			BinaryFiles::writeInt(output, refCount);
+			for (std::pair<ComponentScript*, std::map<std::string, InterfaceItem*>> ref : scriptInterfacePointers) {
+				BinaryFiles::writeString(output, ref.first->GetName());
 
-			int pairCount = ref.second.size();
-			BinaryFiles::writeInt(output, pairCount);
-			for (std::pair<std::string, InterfaceItem*> pair : ref.second) {
-				BinaryFiles::writeString(output, pair.first);
+				int pairCount = ref.second.size();
+				BinaryFiles::writeInt(output, pairCount);
+				for (std::pair<std::string, InterfaceItem*> pair : ref.second) {
+					BinaryFiles::writeString(output, pair.first);
 
-				//If no reference was added, make it null.
-				if (pair.second == nullptr) {
-					std::string null = "NULL";
-					BinaryFiles::writeString(output, null);
+					//If no reference was added, make it null.
+					if (pair.second == nullptr) {
+						std::string null = "NULL";
+						BinaryFiles::writeString(output, null);
+					}
+					else {
+						BinaryFiles::writeString(output, pair.second->GetID());
+					}
+
 				}
-				else {
-					BinaryFiles::writeString(output, pair.second->GetID());
-				}
-
 			}
-		}
 
-		end = BINARY_END;
-		BinaryFiles::writeBINARYType(output, end);
+			end = BINARY_END;
+			BinaryFiles::writeBINARYType(output, end);
+		}
+		else {
+			std::cout << "incorrect file path" << std::endl;
+		}
+		
 		output.close();
 	}
 	catch (std::exception ex) {
@@ -498,6 +532,8 @@ void EngineInterface::UIEitem(ClientHandler &client, PhysicsEngine &physics, Res
 	}
 
 
+	//Displaying the different elements the user can create.
+	//User clicks button to spawn element at menu position.
 	float mouse_x = (ImGui::GetMousePos().x - UIEx - xDisplacement);
 	float mouse_y = (ImGui::GetMousePos().y - UIEy);
 	ImGui::TextDisabled("NEW");
@@ -685,26 +721,6 @@ void EngineInterface::PasteItemUI() {
 
 		UIEitembox = false;
 	}
-
-	//for each (UIRectangle box in UIE.clipboard.rect) {
-	//	pointToScreen(box.topLeft, uiWidth, uiHeight);
-	//	int dx = mousePos.x - box.topLeft.x;
-	//	int dy = mousePos.y - box.topLeft.y;
-	//	pointToScreen(box.lowRight, uiWidth, uiHeight);
-	//	box.lowRight.x += dx;
-	//	box.lowRight.y += dy;
-	//	box.topLeft.x = mousePos.x;
-	//	box.topLeft.y = mousePos.y;
-	//	screenToPoint(box.topLeft);
-	//	screenToPoint(box.lowRight);
-	//	UIE.addRect(box);
-	//}
-	//for each (UILabel lbl in UIE.clipboard.label) {
-	//	glm::vec2 tinyPos = mousePos;
-	//	screenToPoint(tinyPos);
-	//	lbl.point = tinyPos;
-	//	UIE.addLabel(lbl);
-	//}
 }
 
 void EngineInterface::pointToScreen(glm::vec2 &pos, int width, int height) {
@@ -779,7 +795,7 @@ void EngineInterface::findSelection() {
 				topLeft.x -= 5 / (UIEzoom* uiWidth);
 				topLeft.y -= 5 / (UIEzoom* uiWidth);
 
-
+				//Calculates width and height of rectangle.
 				UILabel* lbl = dynamic_cast<UILabel*>(item);
 				ImVec2 txtSize = ImGui::CalcTextSize(lbl->text.c_str());
 				float newWidth = txtSize.x * (lbl->fontSize / ImGui::GetFontSize()) + 5;
@@ -790,7 +806,7 @@ void EngineInterface::findSelection() {
 				newHeight /= (UIEzoom * uiWidth);
 				lowRight.y += newHeight;
 
-
+				//Checks if mouse cursor is within bounding box of label.
 				if (pointInRect(mouseRelative, topLeft, lowRight)) {
 					item->SetSelected(true);
 					selectedTypes[item->GetType()] = true;
@@ -1208,8 +1224,8 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 			int mouse_x = ImGui::GetMousePos().x;
 			int mouse_y = ImGui::GetMousePos().y;
 			if (mouse_x > xDisplacement && mouse_x < width && mouse_y > UIEy && mouse_y < uiHeight + UIEy) {
-				if (!client.InEditor) {
-					client.InEditor = true;
+				if (!client.InGamePreview) {
+					client.InGamePreview = true;
 					client.lastX = mouse_x;
 					client.lastY = mouse_y;
 				}
@@ -1224,7 +1240,7 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 			userInterface(client, physics, res, script);
 		}
 
-		if (!client.InGame && !client.InEditor && showImport) {
+		if (!client.InGame && !client.InGamePreview && showImport) {
 			importItem(client, physics, res, script);
 		}
 
@@ -1232,7 +1248,7 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 		if (client.engineView == Editor) {
 
 			if (!showReloadScreen) {
-
+				//Displays the projects tab (ie, scenes, world inspector, actors, interfaces as a tree).
 				ImGui::Begin("Project", (bool*)true, ImGuiWindowFlags_NoMove);
 				ImGui::SetWindowPos(ImVec2(0, 50));
 
@@ -1242,7 +1258,8 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 				displayActors(res);
 
 
-
+				//Positions the window in the top left.
+				//The size of the project info tab is based on the size of the viewport.
 				xDisplacement = ImGui::GetWindowWidth();
 				yDisplacement = ImGui::GetWindowHeight();
 				if (ImGui::GetWindowWidth() > width * 2 / 3) {
@@ -1253,7 +1270,7 @@ void EngineInterface::update(bool &inGame, ClientHandler &client, PhysicsEngine 
 				ImGui::End();
 
 
-
+				//Displays inspector tab for viewing the selected object or actor.
 				ImGui::Begin("Inspector", (bool*)true, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize);
 				ImGui::SetWindowSize(ImVec2(xDisplacement, 1080 - yDisplacement));
 				ImGui::SetWindowPos(ImVec2(0, yDisplacement + 50));
@@ -1299,13 +1316,16 @@ bool EngineInterface::inScene(ImVec2 mousePos) {
 }
 
 void EngineInterface::DragNDrop(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
+	//Checks if mouse is being held down.
 	if (ImGui::IsMouseDragging(0)) {
 		mouseNow = ImGui::GetMousePos();
 	}
 	else {
+		//Checks when the mouse is released.
 		if (ImGui::IsMouseReleased(0)) {
 			if (inScene(mouseNow)) {
 				if (dragItem.itemType == 1) {
+					//Adds the actor being dragged into the scene.
 					client.world.addObject(dragItem.obj, true);
 				}
 				mouseNow = ImVec2(-1, -1);
@@ -1319,9 +1339,12 @@ void EngineInterface::DragNDrop(ClientHandler &client, PhysicsEngine &physics, R
 
 
 void EngineInterface::showReload(ClientHandler &client) {
+	//This is displayed when the source code of the solution is changed.
+	//The engine must be reloaded before the user can continue.
 	ImGui::Begin("IMPORTANT");
 	ImGui::TextColored(ImVec4(1.0f,0.0f,0.0f,1.0f), "It is essential to reload the program to load new assets.");
 	ImGui::TextColored(ImVec4(0.8f, 0.0f, 0.0f, 1.0f), "The current scene will be saved.");
+	//Closes the application and saves the worlds / project.
 	if (ImGui::Button("EXIT")) {
 		if (saveScene) {
 			client.world.saveBinary(client.WorkingDir);
@@ -1345,9 +1368,9 @@ void EngineInterface::importItem(ClientHandler &client, PhysicsEngine &physics, 
 			sceneNames.push_back(fileName);
 		}
 	}
-	for each (Model model in res.getModels()) {
+	for (Model model : res.getModels()) {
 		int index = 0;
-		for each (std::string name in sceneNames) {
+		for (std::string name : sceneNames) {
 			if (name == model.getPathName()) {
 				sceneNames.erase(sceneNames.begin() + index);
 				break;
@@ -1355,7 +1378,7 @@ void EngineInterface::importItem(ClientHandler &client, PhysicsEngine &physics, 
 			index++;
 		}
 	}
-	for each (std::string name in sceneNames) {
+	for  (std::string name : sceneNames) {
 		if (ImGui::Button(&name[0])) {
 			res.newModel(name, "src\\models\\" + name + ".obj");
 			try {
@@ -1420,6 +1443,7 @@ void EngineInterface::displayUserInterfaces(ClientHandler &client, PhysicsEngine
 
 
 void EngineInterface::displayNewComponent(ClientHandler &client, PhysicsEngine &physics, ResourceManager &res, ScriptManager &scripts) {
+	
 	int selected = client.world.getSelected();
 
 	ImGui::Begin("New component");
@@ -1435,9 +1459,9 @@ void EngineInterface::displayNewComponent(ClientHandler &client, PhysicsEngine &
 	}
 	if (component_type == 0) {
 		ImGui::Text("Model");
-		ImGui::InputText("Name", component_name, 255);
+		GetStringInput("Name", component_name, 255, {});
 		if (component_name == "") {
-			strcpy_s(component_name, "<Empty>");
+			component_name = "<Empty>";
 		}
 		if (ImGui::Button("Add")) {
 			ModelComponent model = ModelComponent();
@@ -1448,9 +1472,9 @@ void EngineInterface::displayNewComponent(ClientHandler &client, PhysicsEngine &
 	}
 	else if (component_type == 1) {
 		ImGui::Text("Point Light");
-		ImGui::InputText("Name", component_name, 255);
+		GetStringInput("Name", component_name, 255, {});
 		if (component_name == "") {
-			strcpy_s(component_name, "<Empty>");
+			component_name = "<Empty>";
 		}
 		if (ImGui::Button("Add")) {
 			unsigned int path = client.world.objects[selected].components.addPointLight(PointLight());
@@ -1459,9 +1483,9 @@ void EngineInterface::displayNewComponent(ClientHandler &client, PhysicsEngine &
 	}
 	else if (component_type == 2) {
 		ImGui::Text("Camera");
-		ImGui::InputText("Name", component_name, 255);
+		GetStringInput("Name", component_name, 255, {});
 		if (component_name == "") {
-			strcpy_s(component_name, "<Empty>");
+			component_name = "<Empty>";
 		}
 		if (ImGui::Button("Add")) {
 			client.world.disableCameras();
@@ -1473,20 +1497,18 @@ void EngineInterface::displayNewComponent(ClientHandler &client, PhysicsEngine &
 		//Displaying scripts. Also where they can be created or destroyed.
 		ImGui::TextDisabled("Script");
 		//Allow user to type in name of the script (for creation).
+		GetStringInput("Name", component_name, 255, {});
 		if (component_name == "") {
-			strcpy_s(component_name, "NewScript");
+			component_name = "<Empty>";
 		}
-		ImGui::InputText("Name", component_name, 255);
 
 		//New script is created.
 		if (ImGui::Button("New")) {
 			//Checks if the scripts name is the same as any other.
 			for (std::pair<std::string,ComponentScript*> script : physics.scripts) {
 				if (script.second->GetName() == component_name) {
-					std::string name = component_name;
 					//Adds text to the end to make it unique.
-					name.append("(1)");
-					strcpy_s(component_name, name.c_str());
+					component_name.append("(1)");
 				}
 			}
 			//Generates script files.
@@ -1654,16 +1676,8 @@ void EngineInterface::displayWorld(ClientHandler &client, PhysicsEngine &physics
 		client.world.d_specular = inputVec3("Specular intensity", glm::vec4({ client.world.d_specular , 0.0f }));
 
 
-		char name[1024];
-		strcpy_s(name, client.world.name.c_str());
-		if (ImGui::InputText("Name", name, 1024)) {
-			if (name != client.world.name) {
-				std::string newName = name;
-				if (newName != "") {
-					client.world.name = name;
-				}
-			}
-		}
+
+		GetStringInput("Name", client.world.name, 1024, {});
 
 		if (ImGui::TreeNode("Object List")) {
 			if (ImGui::Button("New object")) {
@@ -1727,70 +1741,56 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 	style.ItemSpacing.x = 10;
 	NormalDesign();
 
+	//Displaying selected actors.
 	int actorID = res.selectedActor();
 	if (showInspector == 2 && actorID > -1) {
 		Object actor = res.getActors()[actorID];
 		if (ImGui::Button("Delete")) {
 			res.destroyActor(actor.name);
+			std::string path = client.WorkingDir + "Actors\\" + actor.name + ".actor";
+			remove(path.c_str());
 			return;
 		}
 		if (ImGui::TreeNode("Actor Details")) {
 
-			//Changing the name;
-			char name[1024];
-			strcpy_s(name, actor.name.c_str());
-			if (ImGui::InputText("Name", name, 1024)) {
-				if (name != actor.name) {
-					std::string newName = name;
-					if (newName != "") {
-						bool sameName = false;
-						for each (Object act in res.getActors()) {
-							if (act.name == newName) { //Can't allow duplicates.
-								sameName = true;
-								break;
-							}
-						}
-						if (!sameName) {
-							actor.name = newName;
-						}
-					}
+			std::string newName = actor.name;
+			GetStringInput("Name", newName, 256, {});
+			for (Object act : res.getActors()) {
+				if (act.name != actor.name && act.name == newName) { //Can't allow duplicates.
+					newName.append("(1)");
+					break;
 				}
 			}
-			
-
+			if (actor.name != newName) {
+				actor.name = newName;
+				res.newActor(actor, client.WorkingDir);
+			}
 
 			ImGui::TreePop();
 
-			res.setActor(actorID, actor);
 		}
 	}
 	else if (showInspector == 2 && actorID == -1) {
 		ImGui::Text("Nothing to see here..");
 	}
 
+	//Displaying selected object.
 	if (client.world.getSelected() > -1 && showInspector == 1) {
 		Object obj = client.world.getObject(client.world.getSelected());
 		if (ImGui::TreeNode("Object Details"))
 		{
-			char name[1024];
-			strcpy_s(name, obj.name.c_str());
-			if (ImGui::InputText("Name", name, 1024)) {
-				if (name != obj.name) {
-					std::string newName = name;
-					if (newName != "") {
-						bool newNameUnique = true;
-						for each (Object o in client.world.objects) {
-							if (o.name == newName) {
-								newNameUnique = false;
-							}
-						}
-						if (newNameUnique) {
-							obj.name = name;
-						}
-					}
+			//Altering object name.
+			std::string newName = obj.name;
+			GetStringInput("Name", newName, 256, {});
+			for (Object act : res.getActors()) {
+				if (act.name != obj.name && act.name == newName) { //Can't allow duplicates.
+					newName.append("(1)");
+					break;
 				}
 			}
+			obj.name = newName;
 
+			//Delete object.
 			if (ImGui::Button("Delete object")) {
 				unsigned int selected = client.world.getSelected();
 				client.world.deleteObject(selected);
@@ -1802,7 +1802,7 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 				ImGui::TreePop();
 				return;
 
-			} //CRASHED IF SPAMMED.
+			}
 			ImGui::SameLine();
 			if (ImGui::Button("Duplicate object")) {
 				unsigned int selected = client.world.getSelected();
@@ -1818,7 +1818,7 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 
 			if (ImGui::TreeNode("Transform"))
 			{
-				//XYZ coords
+				////XYZ coords
 				ImGui::Text("Location>");
 				ImGui::SameLine();
 				ImGui::DragFloat(":x", &obj.pos.x, 0.1f);
@@ -2038,21 +2038,13 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 							ImGui::TreePop();
 						}
 						unsigned int index = 0;
-						for each (CamComponent cam in obj.components.cameras) {
+						for (CamComponent cam : obj.components.cameras) {
 							if (cam.componentTransform.selected) {
 								if (ImGui::Button("Set as active camera")) {
 									client.world.disableCameras();
 									cam.camera.enabled = true;
 								}
 								ImGui::Checkbox("Locked", &cam.camera.locked);
-
-								//if (ImGui::Checkbox("Active", &cam.camera.enabled)) {
-								//	if (ImGui::IsMouseClicked(0)) {
-								//		if (cam.camera.enabled) {
-								//			client.world.disableCameras();
-								//		}
-								//	}
-								//}
 								cam.componentTransform.position = pos;
 								cam.componentTransform.scale = sca;
 								cam.componentTransform.roll = rot.x;
@@ -2065,7 +2057,7 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 						}
 						index = 0;
 
-						for each (ModelComponent model in obj.components.models) {
+						for (ModelComponent model : obj.components.models) {
 							if (model.componentTransform.selected) {
 
 
@@ -2077,7 +2069,7 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 								if (ImGui::TreeNode("Mesh")) {
 
 									unsigned int index = 0;
-									for each (Mesh mesh in model.modelData.meshes) {
+									for (Mesh mesh : model.modelData.meshes) {
 
 										//Modifying mesh path.
 										std::string disTxt = "#" + std::to_string(index) + ":";
@@ -2085,14 +2077,7 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 										ImGui::SameLine();
 
 										disTxt = "##meshName" + std::to_string(index);
-										char meshName[255];
-										strcpy_s(meshName, sizeof(meshName), mesh.name.c_str());
-										//Input string for new file path.
-										ImGui::InputText(disTxt.c_str(), meshName, sizeof(meshName));
-										std::string result = meshName;
-										if (result.length() > 0) {
-											mesh.name = result;
-										}
+										GetStringInput(disTxt, mesh.name, 255, {});
 
 										//Deleting mesh.
 										disTxt = "Delete##delMesh" + std::to_string(index);
@@ -2114,25 +2099,18 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 									}
 
 									unsigned int index = 1;
-									for each (Material m in model.modelData.materials) {
+									for (Material m : model.modelData.materials) {
 										//Each material of .mtl may be changed.
 
 										std::string lbl = "#" + std::to_string(index) + ":";
 										ImGui::TextDisabled(lbl.c_str());
 
 										ImGui::SameLine();
-										char matName[255];
-										strcpy_s(matName, 255, m.name.c_str());
-										std::string itID = "##matName" + std::to_string(index);
-										ImGui::InputText(itID.c_str(), matName, sizeof(matName));
-										std::string matName_s = matName;
-										if (matName_s.length() > 0) {
-											m.name = matName_s;
-										}
+										GetStringInput("##matName" + std::to_string(index), m.name, 255, {});
 
 										unsigned int tPIndex = 0;
-										for each (std::string dir in m.texture_paths) {
-											m.texture_paths[tPIndex] = inputText(dir, "##iTValTP" + std::to_string(index) + std::to_string(tPIndex));
+										for (std::string dir : m.texture_paths) {
+											GetStringInput("##iTValTP" + std::to_string(index) + std::to_string(tPIndex), m.texture_paths[tPIndex], 255,{});
 											tPIndex++;
 										}
 
@@ -2227,11 +2205,7 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 					}
 					//String values
 					for (std::pair<std::string, std::string> data : obj.componentScriptData[scriptID].variable_string) {
-						char result[1024];
-						strcpy_s(result, data.second.c_str());
-
-						ImGui::InputText(data.first.c_str(), result, 1024);
-						obj.componentScriptData[scriptID].variable_string[data.first] = result;
+						GetStringInput(data.first.c_str(), obj.componentScriptData[scriptID].variable_string[data.first], 1024, {});
 					}
 					ImGui::TreePop();
 				}
@@ -2240,21 +2214,6 @@ void EngineInterface::displaySelectedObj(ClientHandler &client, PhysicsEngine &p
 			ImGui::TreePop(); //Form the details tree.
 		}
 		client.world.setObject(client.world.getSelected(), obj);
-	}
-}
-
-
-
-std::string EngineInterface::inputText(std::string value, std::string id) {
-	char name[255];
-	strcpy_s(name, 255, value.c_str());
-	ImGui::InputText(id.c_str(), name, sizeof(name));
-	std::string name_s = name;
-	if (name_s.length() > 0) {
-		return name_s;
-	}
-	else {
-		return value;
 	}
 }
 

@@ -55,7 +55,7 @@ Object::Object(glm::vec3 _pos, glm::vec3 scale, float _pitch, float _yaw, float 
 //Used to get object data from a script.
 void Object::GetScriptData(ComponentScript* script, std::string id) {
 	//Object data.
-	components = script->getComponents();
+	components = *script->GetComponents();
 	pos = script->GetPosition();
 	sca = script->GetScale();
 	pitch =std::fmod(script->GetPitch(), 360.0f);
@@ -98,6 +98,8 @@ void Object::GetScriptData(ComponentScript* script, std::string id) {
 }
 
 void Object::PrepareScript(ComponentScript* script, std::string id, GLFWwindow *_window) {
+	//Updates the script with all the new object data.
+	//Transfers its stored variables back into the script.
 	script->update(pos, sca, pitch, roll, yaw, components); //Run script.
 	script->setScriptWindow(_window);
 	script->SetMass(physicsBody.mass);
@@ -115,6 +117,7 @@ void Object::startScript(ComponentScript* script, std::string scriptID, GLFWwind
 	script->SetLinearVelocity(physicsBody.linear_velocity);
 	script->setDelete(false);
 
+	//Resets all of the scripts variables (and initialises them).
 	componentScriptData[scriptID].variable_bool.clear();
 	componentScriptData[scriptID].variable_int.clear();
 	componentScriptData[scriptID].variable_float.clear();
@@ -139,13 +142,6 @@ void Object::OnStart(ComponentScript* script, std::string scriptID, GLFWwindow *
 	
 	GetScriptData(script, scriptID);
 	componentScriptData[scriptID].enabled = true;
-}
-
-void Object::OnUpdate(ComponentScript* script, std::string scriptID, GLFWwindow *_window) {
-	PrepareScript(script, scriptID, _window);
-	script->OnUpdate();
-
-	GetScriptData(script, scriptID);
 }
 
 void Object::OnFixedUpdate(ComponentScript* script, std::string scriptID, GLFWwindow *_window, float deltaTime) {
@@ -211,9 +207,7 @@ bool Object::isSelected() {
 
 Transform Object::getTransformStruct() {
 	Transform t;
-	//t.pitch = pitch;
-	//t.roll = roll;
-	//t.yaw = yaw;
+	//This is used by the physics collision boxes, so rotations have been left out.
 	t.pitch = 0.0f;
 	t.roll = 0.0f;
 	t.yaw = 0.0f;
@@ -223,12 +217,15 @@ Transform Object::getTransformStruct() {
 }
 
 void Object::addScript(std::string ID) {
+	//Adds script ID to the list of object's scripts.
 	componentScriptIDs.push_back(ID);
 	DataStorage ds;
+	//Adds a new set of script variable dictionaries to the list.
 	componentScriptData.insert(std::pair<std::string, DataStorage>(ID, ds));
 }
 
 void Object::deleteScript(std::string ID) {
+	//Erases the scripts existance.
 	unsigned int index = 0;
 	for (std::string cs : componentScriptIDs) {
 		if (cs == ID) {
@@ -241,6 +238,7 @@ void Object::deleteScript(std::string ID) {
 }
 
 float Object::distanceTo(glm::vec3 position) {
+	//Calculates the magnitude of the position vector between the object and the location in the parameter.
 	float xChange = position.x - pos.x;
 	float yChange = position.y - pos.y;
 	float zChange = position.z - pos.z;
@@ -249,6 +247,7 @@ float Object::distanceTo(glm::vec3 position) {
 }
 
 glm::mat4 Object::getTransform() {
+	//Transforms a matrix with the current rotation, scale and position.
 	glm::mat4 result = glm::mat4(1.0f);
 
 	result = glm::translate(result, pos);
@@ -261,6 +260,7 @@ glm::mat4 Object::getTransform() {
 }
 
 glm::vec3 Object::GetForward() {
+	//Calculates the forward unit vector (where the object is facing).
 	glm::vec3 result;
 	result.x = cos(glm::radians(pitch)) * cos(glm::radians(yaw));
 	result.y = sin(glm::radians(pitch));
@@ -269,6 +269,7 @@ glm::vec3 Object::GetForward() {
 }
 
 glm::vec3 Object::getRight() {
+	//Calculates the right unit vector (direction to the right of the player).
 	glm::vec3 c_Right = glm::normalize(glm::cross(GetForward(), { 0.0f, 1.0f, 0.0f }));
 	return c_Right;
 }
@@ -279,6 +280,7 @@ glm::vec3 Object::getPos() {
 }
 
 void Object::rotate(std::string axis, float degree) {
+	//Rotation based on axis, relative to its previous rotation.
 	if (axis == "x") {
 		roll += degree;
 	}
@@ -291,6 +293,7 @@ void Object::rotate(std::string axis, float degree) {
 }
 
 void Object::setRot(std::string axis, float angle) {
+	//Setting rotation.
 	if (axis == "x") {
 		roll = angle;
 	}

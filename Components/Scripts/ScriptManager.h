@@ -6,9 +6,6 @@
 #include <filesystem> //Searching directories.
 #include <stdio.h> //Deleting files.
 
-
-#include "FirstScript.h"
-
 class ScriptManager
 {
 public:

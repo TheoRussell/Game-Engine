@@ -4,13 +4,10 @@
 
 #define SCENE_H
 
-
-//FirstScript fs;
 Scene::Scene()
 {
 	defaultCamera();
 	name = "Scene";
-	//terrains.push_back(Terrain());
 }
 
 Scene::~Scene()
@@ -18,6 +15,7 @@ Scene::~Scene()
 }
 
 void Scene::defaultCamera() {
+	//Adds a default camera object to the scene to move around.
 	unsigned int playerID = addObject(Object());
 	setObjectPos(playerID, glm::vec3(0.0f, 1.0f, 0.0f));
 	objects[playerID].components.addCamera(Camera());
@@ -31,6 +29,7 @@ void Scene::deleteObjects() {
 }
 
 void Scene::disableCameras() {
+	//Iterates through each object and disables the camera components.
 	if (objects.size() > 0) {
 		for (unsigned int objID = 0; objID < objects.size(); objID++) {
 			if (objects[objID].components.cameras.size() > 0) {
@@ -50,10 +49,15 @@ CamComponent Scene::getCamera() {
 
 
 CamComponent Scene::getCamera(bool inGame) {
+	//Camera caching is important as it means that the user's game camera and inspector camera are seperate entities.
+	//They can easily be switched out when the user changes between engine perspectives.
+
+	//If in game, returns the cached game cam (ie, the camera in the scene in an object).
 	if (inGame && cachedGame) {
 		return cachedGameCam;
 	}
 	else if (inGame && !cachedGame) {
+		//If there is no cached camera, find the current active camera in the scene and set it to be that.
 		for (unsigned int objID = 0; objID < objects.size(); objID++) {
 			for (unsigned int camID = 0; camID < objects[objID].components.cameras.size(); camID++) {
 				CamComponent cam = objects[objID].components.cameras[camID];
@@ -66,6 +70,7 @@ CamComponent Scene::getCamera(bool inGame) {
 			}
 		}
 	} else if (!inGame) {
+		//Returns the game preview camera. (that belongs to no object).
 		return cachedEditorCam;
 	}
 	defaultCamera();
@@ -73,7 +78,6 @@ CamComponent Scene::getCamera(bool inGame) {
 }
 
 void Scene::deleteScene(std::string path) {
-	//DELETE THE SCENE FROM FILES.
 	try {
 		std::remove(path.c_str());
 		scene_deleted = true;
@@ -84,22 +88,24 @@ void Scene::deleteScene(std::string path) {
 }
 
 bool Scene::loadBinary(std::string WorkingDir) {
+	//Loads the scene from a binary file. Utilises the Binary Files class functions.
 	try {
 		objects.clear();
 		cachedGame = false;
-
+		//Ensures the file path is valid.
 		if (WorkingDir.find(".SCENE") == std::string::npos) {
 			WorkingDir.append(".SCENE");
 		}
 
 		std::ifstream file(WorkingDir);
 		if (file.good()) {
+			//Reads the scene data.
 			name = BinaryFiles::getString(file);
 			voidCol = BinaryFiles::getVec3(file);
 			d_ambient = BinaryFiles::getVec3(file);
 			d_diffuse = BinaryFiles::getVec3(file);
 			d_specular = BinaryFiles::getVec3(file);
-
+			//Iterates through each block to the end of the file, finding all possible objects.
 			BINARYWrite bw = BINARY_Label;
 			while (bw != BINARY_END) {
 				bw = BinaryFiles::getBINARYType(file);
@@ -112,6 +118,7 @@ bool Scene::loadBinary(std::string WorkingDir) {
 		return true;
 	}
 	catch (std::exception ex) {
+		//This will occur if the file path is incorrect, or there are unexpected values in the file stream that alter what data types the loader thinks it is reading.
 		std::cout << "The save file is corrupt! Sorry: " << ex.what() << std::endl;
 		return false;
 	}
@@ -129,13 +136,14 @@ Object Scene::loadObject(std::ifstream &file, bool readType) {
 	}
 	
 	Object obj;
+	//Loads scene transformation.
 	obj.name = BinaryFiles::getString(file);
 	obj.pos = BinaryFiles::getVec3(file);
 	obj.sca = BinaryFiles::getVec3(file);
 	obj.roll = BinaryFiles::getFloat(file);
 	obj.pitch = BinaryFiles::getFloat(file);
 	obj.yaw = BinaryFiles::getFloat(file);
-
+	//Physics data.
 	obj.physicsBody.enabled = BinaryFiles::getBool(file);
 	obj.physicsBody.collides = BinaryFiles::getBool(file);
 	obj.physicsBody.doesGravity = BinaryFiles::getBool(file);
@@ -148,15 +156,16 @@ Object Scene::loadObject(std::ifstream &file, bool readType) {
 	obj.physicsBody.pitch = BinaryFiles::getFloat(file);
 	obj.physicsBody.yaw = BinaryFiles::getFloat(file);
 
-	while (bw != BINARY_EOO) {
+	while (bw != BINARY_EOO) { //Continues through the data till the end of the buffer is found or End Of Object.
 		bw = BinaryFiles::getBINARYType(file);
 		if (bw < BINARY_Physics) {
-			//Error handling - this shouldn't occur.
+			//Error handling - this shouldn't occur. < Physics is any of the data structures before an object's components.
 			file.close();
 			throw std::exception("File does not follow file protocols");
 		}
 
 		if (bw == BINARY_Physics) {
+			//Collision box.
 			BoxCollider bc;
 			bc.position = BinaryFiles::getVec3(file);
 			bc.scale = BinaryFiles::getVec3(file);
@@ -173,6 +182,7 @@ Object Scene::loadObject(std::ifstream &file, bool readType) {
 			obj.physicsBody.coll_Box.push_back(bc);
 		}
 		if (bw == BINARY_Camera) {
+			//Camera components.
 			CamComponent cc;
 			cc.componentTransform.name = BinaryFiles::getString(file);
 			cc.componentTransform.position = BinaryFiles::getVec3(file);
@@ -185,6 +195,7 @@ Object Scene::loadObject(std::ifstream &file, bool readType) {
 			obj.components.cameras.push_back(cc);
 		}
 		if (bw == BINARY_PLight) {
+			//Point lights.
 			PLightComponent pl;
 			pl.componentTransform.name = BinaryFiles::getString(file);
 			pl.componentTransform.position = BinaryFiles::getVec3(file);
@@ -238,6 +249,7 @@ Object Scene::loadObject(std::ifstream &file, bool readType) {
 					mats.push_back(material);
 				}
 			}
+			//When the mesh is complete, it calls upon the model class to generate the mesh and material data buffers.
 			mc.modelData.regenerateMeshes();
 			mc.modelData.regenerateMats(mats);
 
@@ -511,6 +523,7 @@ unsigned int Scene::addObject(Object o, std::string name) {
 
 
 Scene Scene::interpolate(Scene other, double deltaTime) {
+	//Interpolating between one scene and the next.
 		Scene s;
 		s.cachedEditorCam = (cachedEditorCam - other.cachedEditorCam) * deltaTime;
 		s.cachedGameCam = (cachedGameCam - other.cachedGameCam) * deltaTime;
@@ -521,7 +534,7 @@ Scene Scene::interpolate(Scene other, double deltaTime) {
 		std::vector<Object> newObjects;
 		for each (Object obj in objects) {
 			bool foundMatch = false;
-			for each (Object other_obj in other.objects) {
+			for (Object other_obj : other.objects) {
 				if (obj.name == other_obj.name) {
 					Object o = obj - other_obj;
 					o = o * deltaTime;
@@ -531,6 +544,7 @@ Scene Scene::interpolate(Scene other, double deltaTime) {
 				}
 			}
 			if (!foundMatch) {
+				//If the objects are not the same, it adds the new object to the scene.
 				newObjects.push_back(obj);
 			}
 		}
@@ -546,6 +560,7 @@ unsigned int Scene::addObject(Object o, std::string name, bool isActor) {
 	o.select();
 
 	if (isActor) {
+		//Actors do not have an obj ID that they belong to. Hence, each component needs to be updated.
 		for (int i = 0; i < o.components.models.size(); i++) {
 			o.components.models[i].componentTransform.objID = objects.size() - 1;
 		}
